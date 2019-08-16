@@ -7,8 +7,6 @@ use std::time::Duration;
 use std::process::Command;
 use glob::glob;
 
-
-
 fn main() {
     let mut mode = "";
     let mut old_state = "normal";
@@ -39,6 +37,12 @@ fn main() {
 
     let matches = App::new("rot8")
                         .version("0.1.1")
+                        .arg(Arg::with_name("sleep")
+                                .default_value("500")
+                                .long("sleep")
+                                .value_name("SLEEP")
+                                .help("Set sleep millis")
+                                .takes_value(true))
                         .arg(Arg::with_name("display")
                                 .default_value("eDP-1")
                                 .long("display")
@@ -46,12 +50,13 @@ fn main() {
                                 .help("Set Display Device")
                                 .takes_value(true))
                         .arg(Arg::with_name("touchscreen")
-                                .default_value("eDP-1")
+                                .default_value("ELAN0732:00 04F3:22E1")
                                 .long("touchscreen")
                                 .value_name("TOUCHSCREEN")
-                                .help("Set Touchscreen Device")
+                                .help("Set Touchscreen Device (X11)")
                                 .takes_value(true))             
                         .get_matches(); 
+    let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf"); 
 
@@ -128,7 +133,6 @@ fn main() {
                 old_state = new_state;
             }
             if mode == "x"  {
-
                 Command::new("xrandr")
                         .arg("-o")
                         .arg(x_state)
@@ -148,8 +152,7 @@ fn main() {
                 old_state = new_state;
             }
         }
-
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(sleep));
     }
 }
 
