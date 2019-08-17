@@ -2,6 +2,12 @@
 name = "rot8"
 version = "0.1.1"
 authors = ["efernau <e.fernau@efero.de>"]
+license = "MIT"
+description = "automatic display rotation using built-in accelerometer"
+homepage = "https://github.com/efernau/rot8"
+documentation = "https://github.com/efernau/rot8"
+repository = "https://github.com/efernau/rot8"
+keywords = ["sway", "x11", "display", "rotation"]
 edition = "2018"
 
 [dependencies]
