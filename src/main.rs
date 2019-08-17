@@ -152,7 +152,7 @@ fn main() {
                 old_state = new_state;
             }
         }
-        thread::sleep(Duration::from_millis(sleep));
+        thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
     }
 }
 
