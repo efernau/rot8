@@ -1,37 +1,107 @@
 extern crate clap;
 extern crate glob;
+extern crate regex;
+
 use clap::{App, Arg};
 use glob::glob;
+use serde::Deserialize;
 use std::fs;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-enum BackendMode {
+enum Backend {
     Sway,
     Xorg,
 }
 
+#[derive(Deserialize)]
+struct SwayOutput {
+    name: String,
+    transform: String,
+}
+
+fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<String, String> {
+    match backend {
+        Backend::Sway => {
+            let raw_rotation_state = String::from_utf8(
+                Command::new("swaymsg")
+                    .arg("-t")
+                    .arg("get_outputs")
+                    .arg("--raw")
+                    .output()
+                    .expect("Swaymsg get outputs command failed to start")
+                    .stdout,
+            )
+            .unwrap();
+            let deserialized: Vec<SwayOutput> = serde_json::from_str(&raw_rotation_state)
+                .expect("Unable to deserialize swaymsg JSON output");
+            for output in deserialized {
+                if output.name == display {
+                    return Ok(output.transform);
+                }
+            }
+
+            return Err(format!(
+                "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
+                display
+            )
+            .to_owned());
+        }
+        Backend::Xorg => {
+            let raw_rotation_state = String::from_utf8(
+                Command::new("xrandr")
+                    .output()
+                    .expect("Xrandr get outputs command failed to start")
+                    .stdout,
+            )
+            .unwrap();
+            let xrandr_output_pattern = regex::Regex::new(format!(
+                    r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
+                    regex::escape(display),
+            ).as_str()).unwrap();
+            for xrandr_output_line in raw_rotation_state.split("\n") {
+                if !xrandr_output_pattern.is_match(xrandr_output_line) {
+                    continue;
+                }
+
+                let xrandr_output_captures =
+                    xrandr_output_pattern.captures(xrandr_output_line).unwrap();
+                if let Some(transform) = xrandr_output_captures.get(1) {
+                    return Ok(transform.as_str().to_owned());
+                } else {
+                    return Ok("normal".to_owned());
+                }
+            }
+
+            return Err(format!(
+                "Unable to determine rotation state: display {} not found in xrandr output",
+                display
+            )
+            .to_owned());
+        }
+    }
+}
+
 fn main() -> Result<(), String> {
-    let mut old_state = "normal";
     let mut new_state: &str;
     let mut path_x: String = "".to_string();
     let mut path_y: String = "".to_string();
     let mut matrix: [&str; 9];
     let mut x_state: &str;
 
-    let mode = if String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
+    let backend = if String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
         .unwrap()
         .len()
         >= 1
     {
-        BackendMode::Sway
+        Backend::Sway
     } else if String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
         .unwrap()
         .len()
         >= 1
     {
-        BackendMode::Xorg
+        Backend::Xorg
     } else {
         return Err("Unable to find Sway or Xorg procceses".to_owned());
     };
@@ -66,6 +136,8 @@ fn main() -> Result<(), String> {
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
+    let old_state_owned = get_window_server_rotation_state(display, &backend)?;
+    let mut old_state = old_state_owned.as_str();
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
         match entry {
@@ -77,8 +149,7 @@ fn main() -> Result<(), String> {
                 } else if path.to_str().unwrap().contains("z_raw") {
                     continue;
                 } else {
-                    println!("{:?}", path);
-                    panic!();
+                    panic!("Unknown accelerometer device path {:?}", path);
                 }
             }
             Err(e) => println!("{:?}", e),
@@ -124,22 +195,22 @@ fn main() -> Result<(), String> {
         }
 
         if new_state != old_state {
-            match mode {
-                BackendMode::Sway => {
+            match backend {
+                Backend::Sway => {
                     Command::new("swaymsg")
                         .arg("output")
                         .arg(display)
                         .arg("transform")
                         .arg(new_state)
                         .spawn()
-                        .expect("rotate command failed to start");
+                        .expect("Swaymsg rotate command failed to start");
                 }
-                BackendMode::Xorg => {
+                Backend::Xorg => {
                     Command::new("xrandr")
                         .arg("-o")
                         .arg(x_state)
                         .spawn()
-                        .expect("rotate command failed to start");
+                        .expect("Xrandr rotate command failed to start");
 
                     Command::new("xinput")
                         .arg("set-prop")
@@ -149,7 +220,7 @@ fn main() -> Result<(), String> {
                         .arg("Matrix")
                         .args(&matrix)
                         .spawn()
-                        .expect("rotate command failed to start");
+                        .expect("Xinput rotate command failed to start");
                 }
             }
             old_state = new_state;

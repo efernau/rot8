@@ -11,5 +11,8 @@ keywords = ["sway", "x11", "display", "rotation"]
 edition = "2018"
 
 [dependencies]
-glob = "0.3"
 clap = "2.33"
+glob = "0.3"
+regex = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
