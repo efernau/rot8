@@ -7,8 +7,12 @@ use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-fn main() {
-    let mut mode = "";
+enum BackendMode {
+    Sway,
+    Xorg,
+}
+
+fn main() -> Result<(), String> {
     let mut old_state = "normal";
     let mut new_state: &str;
     let mut path_x: String = "".to_string();
@@ -16,17 +20,21 @@ fn main() {
     let mut matrix: [&str; 9];
     let mut x_state: &str;
 
-    let sway_pid =
-        String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout).unwrap();
-
-    let x_pid = String::from_utf8(Command::new("pidof").arg("x").output().unwrap().stdout).unwrap();
-
-    if sway_pid.len() >= 1 {
-        mode = "sway";
-    }
-    if x_pid.len() >= 1 {
-        mode = "x";
-    }
+    let mode = if String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
+        .unwrap()
+        .len()
+        >= 1
+    {
+        BackendMode::Sway
+    } else if String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
+        .unwrap()
+        .len()
+        >= 1
+    {
+        BackendMode::Xorg
+    } else {
+        return Err("Unable to find Sway or Xorg procceses".to_owned());
+    };
 
     let matches = App::new("rot8")
         .version("0.1.1")
@@ -116,36 +124,35 @@ fn main() {
         }
 
         if new_state != old_state {
-            if mode == "sway" {
-                Command::new("swaymsg")
-                    .arg("output")
-                    .arg(display)
-                    .arg("transform")
-                    .arg(new_state)
-                    .spawn()
-                    .expect("rotate command failed to start");
+            match mode {
+                BackendMode::Sway => {
+                    Command::new("swaymsg")
+                        .arg("output")
+                        .arg(display)
+                        .arg("transform")
+                        .arg(new_state)
+                        .spawn()
+                        .expect("rotate command failed to start");
+                }
+                BackendMode::Xorg => {
+                    Command::new("xrandr")
+                        .arg("-o")
+                        .arg(x_state)
+                        .spawn()
+                        .expect("rotate command failed to start");
 
-                old_state = new_state;
+                    Command::new("xinput")
+                        .arg("set-prop")
+                        .arg(touchscreen)
+                        .arg("Coordinate")
+                        .arg("Transformation")
+                        .arg("Matrix")
+                        .args(&matrix)
+                        .spawn()
+                        .expect("rotate command failed to start");
+                }
             }
-            if mode == "x" {
-                Command::new("xrandr")
-                    .arg("-o")
-                    .arg(x_state)
-                    .spawn()
-                    .expect("rotate command failed to start");
-
-                Command::new("xinput")
-                    .arg("set-prop")
-                    .arg(touchscreen)
-                    .arg("Coordinate")
-                    .arg("Transformation")
-                    .arg("Matrix")
-                    .args(&matrix)
-                    .spawn()
-                    .expect("rotate command failed to start");
-
-                old_state = new_state;
-            }
+            old_state = new_state;
         }
         thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
     }
