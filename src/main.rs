@@ -169,7 +169,7 @@ fn main() -> Result<(), String> {
                 matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
             } else {
                 new_state = "90";
-                x_state = "left";
+                x_state = "right";
                 matrix = ["0", "-1", "1", "1", "0", "0", "0", "0", "1"];
             }
         } else if x > 500000 {
@@ -179,7 +179,7 @@ fn main() -> Result<(), String> {
                 matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
             } else {
                 new_state = "270";
-                x_state = "right";
+                x_state = "left";
                 matrix = ["0", "1", "0", "-1", "0", "1", "0", "0", "1"];
             }
         } else {
