@@ -203,14 +203,18 @@ fn main() -> Result<(), String> {
                         .arg("transform")
                         .arg(new_state)
                         .spawn()
-                        .expect("Swaymsg rotate command failed to start");
+                        .expect("Swaymsg rotate command failed to start")
+                        .wait()
+                        .expect("Swaymsg rotate command wait failed");
                 }
                 Backend::Xorg => {
                     Command::new("xrandr")
                         .arg("-o")
                         .arg(x_state)
                         .spawn()
-                        .expect("Xrandr rotate command failed to start");
+                        .expect("Xrandr rotate command failed to start")
+                        .wait()
+                        .expect("Xrandr rotate command wait failed");
 
                     Command::new("xinput")
                         .arg("set-prop")
@@ -220,7 +224,9 @@ fn main() -> Result<(), String> {
                         .arg("Matrix")
                         .args(&matrix)
                         .spawn()
-                        .expect("Xinput rotate command failed to start");
+                        .expect("Xinput rotate command failed to start")
+                        .wait()
+                        .expect("Xinput rotate command wait failed");
                 }
             }
             old_state = new_state;
