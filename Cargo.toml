@@ -1,6 +1,6 @@
 [package]
 name = "rot8"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["efernau <e.fernau@efero.de>"]
 license = "MIT"
 description = "automatic display rotation using built-in accelerometer"
