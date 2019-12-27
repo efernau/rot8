@@ -33,7 +33,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Swaymsg get outputs command failed to start")
                     .stdout,
             )
-            .unwrap();
+                .unwrap();
             let deserialized: Vec<SwayOutput> = serde_json::from_str(&raw_rotation_state)
                 .expect("Unable to deserialize swaymsg JSON output");
             for output in deserialized {
@@ -46,7 +46,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
                 display
             )
-            .to_owned());
+                .to_owned());
         }
         Backend::Xorg => {
             let raw_rotation_state = String::from_utf8(
@@ -55,10 +55,10 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Xrandr get outputs command failed to start")
                     .stdout,
             )
-            .unwrap();
+                .unwrap();
             let xrandr_output_pattern = regex::Regex::new(format!(
-                    r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
-                    regex::escape(display),
+                r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
+                regex::escape(display),
             ).as_str()).unwrap();
             for xrandr_output_line in raw_rotation_state.split("\n") {
                 if !xrandr_output_pattern.is_match(xrandr_output_line) {
@@ -78,7 +78,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 "Unable to determine rotation state: display {} not found in xrandr output",
                 display
             )
-            .to_owned());
+                .to_owned());
         }
     }
 }
@@ -89,6 +89,7 @@ fn main() -> Result<(), String> {
     let mut path_y: String = "".to_string();
     let mut matrix: [&str; 9];
     let mut x_state: &str;
+    let mut keyboard_state: &str;
 
     let backend = if String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
         .unwrap()
@@ -132,10 +133,18 @@ fn main() -> Result<(), String> {
                 .help("Set Touchscreen Device (X11)")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("keyboard")
+                .long("keyboard")
+                .value_name("KEYBOARD")
+                .help("Disable keyboard for tablet modes")
+                .takes_value(true),
+        )
         .get_matches();
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
+    let keyboard = matches.value_of("keyboard").unwrap_or("default.conf");
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
 
@@ -165,10 +174,12 @@ fn main() -> Result<(), String> {
         if x < -500000 {
             if y > 500000 {
                 new_state = "180";
+                keyboard_state = "disabled";
                 x_state = "normal";
                 matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
             } else {
                 new_state = "90";
+                keyboard_state = "disabled";
                 x_state = "right";
                 matrix = ["0", "-1", "1", "1", "0", "0", "0", "0", "1"];
             }
@@ -176,19 +187,23 @@ fn main() -> Result<(), String> {
             if y > 500000 {
                 new_state = "180";
                 x_state = "inverted";
+                keyboard_state = "disabled";
                 matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
             } else {
                 new_state = "270";
+                keyboard_state = "disabled";
                 x_state = "left";
                 matrix = ["0", "1", "0", "-1", "0", "1", "0", "0", "1"];
             }
         } else {
             if y > 500000 {
                 new_state = "180";
+                keyboard_state = "disabled";
                 x_state = "inverted";
                 matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
             } else {
                 new_state = "normal";
+                keyboard_state = "enabled";
                 x_state = "normal";
                 matrix = ["1", "0", "0", "0", "1", "0", "0", "0", "1"];
             }
@@ -206,6 +221,15 @@ fn main() -> Result<(), String> {
                         .expect("Swaymsg rotate command failed to start")
                         .wait()
                         .expect("Swaymsg rotate command wait failed");
+                    Command::new("swaymsg")
+                        .arg("input")
+                        .arg(keyboard)
+                        .arg("events")
+                        .arg(keyboard_state)
+                        .spawn()
+                        .expect("Swaymsg keyboard command failed to start")
+                        .wait()
+                        .expect("Swaymsg keyboard command wait failed");
                 }
                 Backend::Xorg => {
                     Command::new("xrandr")
