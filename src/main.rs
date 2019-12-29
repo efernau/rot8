@@ -2,13 +2,15 @@ extern crate clap;
 extern crate glob;
 extern crate regex;
 
-use clap::{App, Arg};
-use glob::glob;
-use serde::Deserialize;
 use std::fs;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
+
+use clap::{App, Arg};
+use glob::glob;
+use serde::Deserialize;
+use serde_json::Value;
 
 enum Backend {
     Sway,
@@ -19,6 +21,38 @@ enum Backend {
 struct SwayOutput {
     name: String,
     transform: String,
+}
+
+fn get_keyboards(backend: &Backend) -> Result<Vec<String>, String> {
+    match backend {
+        Backend::Sway => {
+            let raw_inputs = String::from_utf8(
+                Command::new("swaymsg")
+                    .arg("-t")
+                    .arg("get_inputs")
+                    .arg("--raw")
+                    .output()
+                    .expect("Swaymsg get inputs command failed")
+                    .stdout,
+            )
+                .unwrap();
+
+            let mut keyboards = vec![];
+            let deserialized: Vec<Value> = serde_json::from_str(&raw_inputs)
+                .expect("Unable to deserialize swaymsg JSON output");
+            for output in deserialized {
+                let input_type = output["type"].as_str().unwrap();
+                if input_type == "keyboard" {
+                    keyboards.push(output["identifier"].to_string());
+                }
+            }
+
+            return Ok(keyboards);
+        }
+        Backend::Xorg => {
+            return Ok(vec![]);
+        }
+    }
 }
 
 fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<String, String> {
@@ -107,46 +141,54 @@ fn main() -> Result<(), String> {
         return Err("Unable to find Sway or Xorg procceses".to_owned());
     };
 
-    let matches = App::new("rot8")
+    let mut args = vec![
+        Arg::with_name("sleep")
+            .default_value("500")
+            .long("sleep")
+            .value_name("SLEEP")
+            .help("Set sleep millis")
+            .takes_value(true),
+        Arg::with_name("display")
+            .default_value("eDP-1")
+            .long("display")
+            .value_name("DISPLAY")
+            .help("Set Display Device")
+            .takes_value(true),
+        Arg::with_name("touchscreen")
+            .default_value("ELAN0732:00 04F3:22E1")
+            .long("touchscreen")
+            .value_name("TOUCHSCREEN")
+            .help("Set Touchscreen Device (X11)")
+            .takes_value(true)
+    ];
+
+    match backend {
+        Backend::Sway => {
+            args.push(
+                Arg::with_name("keyboard")
+                    .long("disable-keyboard")
+                    .short("k")
+                    .help("Disable keyboard for tablet modes (Sway only)")
+                    .takes_value(false)
+            );
+        }
+        Backend::Xorg => { /* Keyboard disabling in Xorg is not supported yet */ }
+    }
+
+    let cmd_lines = App::new("rot8")
         .version("0.1.1")
-        .arg(
-            Arg::with_name("sleep")
-                .default_value("500")
-                .long("sleep")
-                .value_name("SLEEP")
-                .help("Set sleep millis")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("display")
-                .default_value("eDP-1")
-                .long("display")
-                .value_name("DISPLAY")
-                .help("Set Display Device")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("touchscreen")
-                .default_value("ELAN0732:00 04F3:22E1")
-                .long("touchscreen")
-                .value_name("TOUCHSCREEN")
-                .help("Set Touchscreen Device (X11)")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("keyboard")
-                .long("keyboard")
-                .value_name("KEYBOARD")
-                .help("Disable keyboard for tablet modes")
-                .takes_value(true),
-        )
-        .get_matches();
+        .args(&args);
+
+    let matches = cmd_lines.get_matches();
+
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
-    let keyboard = matches.value_of("keyboard").unwrap_or("default.conf");
+    let disable_keyboard = matches.is_present("keyboard");
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
+
+    let keyboards = get_keyboards(&backend)?;
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
         match entry {
@@ -221,15 +263,20 @@ fn main() -> Result<(), String> {
                         .expect("Swaymsg rotate command failed to start")
                         .wait()
                         .expect("Swaymsg rotate command wait failed");
-                    Command::new("swaymsg")
-                        .arg("input")
-                        .arg(keyboard)
-                        .arg("events")
-                        .arg(keyboard_state)
-                        .spawn()
-                        .expect("Swaymsg keyboard command failed to start")
-                        .wait()
-                        .expect("Swaymsg keyboard command wait failed");
+                    if disable_keyboard {
+                        for keyboard in &keyboards {
+//                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
+                            Command::new("swaymsg")
+                                .arg("input")
+                                .arg(keyboard)
+                                .arg("events")
+                                .arg(keyboard_state)
+                                .spawn()
+                                .expect("Swaymsg keyboard command failed to start")
+                                .wait()
+                                .expect("Swaymsg keyboard command wait failed");
+                        }
+                    }
                 }
                 Backend::Xorg => {
                     Command::new("xrandr")
