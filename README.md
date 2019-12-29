@@ -55,5 +55,5 @@ there are the following args.
 --sleep // Set sleep millis (500)
 --display // Set Display Device (eDP-1)
 --touchscreen // Set Touchscreen Device X11 (ELAN0732:00 04F3:22E1)
--k, --disable-keyboard // Disable keyboards when rotated
+-k, --disable-keyboard // Disable keyboards when rotated (Sway only)
 ```
