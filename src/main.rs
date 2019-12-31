@@ -33,7 +33,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Swaymsg get outputs command failed to start")
                     .stdout,
             )
-            .unwrap();
+                .unwrap();
             let deserialized: Vec<SwayOutput> = serde_json::from_str(&raw_rotation_state)
                 .expect("Unable to deserialize swaymsg JSON output");
             for output in deserialized {
@@ -46,7 +46,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
                 display
             )
-            .to_owned());
+                .to_owned());
         }
         Backend::Xorg => {
             let raw_rotation_state = String::from_utf8(
@@ -55,10 +55,10 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Xrandr get outputs command failed to start")
                     .stdout,
             )
-            .unwrap();
+                .unwrap();
             let xrandr_output_pattern = regex::Regex::new(format!(
-                    r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
-                    regex::escape(display),
+                r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
+                regex::escape(display),
             ).as_str()).unwrap();
             for xrandr_output_line in raw_rotation_state.split("\n") {
                 if !xrandr_output_pattern.is_match(xrandr_output_line) {
@@ -78,9 +78,16 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 "Unable to determine rotation state: display {} not found in xrandr output",
                 display
             )
-            .to_owned());
+                .to_owned());
         }
     }
+}
+
+struct Orientation {
+    vector: (f32, f32),
+    new_state: &'static str,
+    x_state: &'static str,
+    matrix: [&'static str; 9]
 }
 
 fn main() -> Result<(), String> {
@@ -132,10 +139,19 @@ fn main() -> Result<(), String> {
                 .help("Set Touchscreen Device (X11)")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("threshold")
+                .default_value("0.5")
+                .long("threshold")
+                .value_name("THRESHOLD")
+                .help("Set a rotation threshold between 0 and 1")
+                .takes_value(true)
+        )
         .get_matches();
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
+    let threshold = matches.value_of("threshold").unwrap_or("default.conf");
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
 
@@ -156,43 +172,56 @@ fn main() -> Result<(), String> {
         }
     }
 
+    let orientations = [
+        Orientation {
+            vector: (0.0, -1.0),
+            new_state: "normal",
+            x_state: "normal",
+            matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"]
+        },
+        Orientation {
+            vector: (0.0, 1.0),
+            new_state: "180",
+            x_state: "inverted",
+            matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"]
+        },
+        Orientation {
+            vector: (-1.0, 0.0),
+            new_state: "90",
+            x_state: "right",
+            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"]
+        },
+        Orientation {
+            vector: (1.0, 0.0),
+            new_state: "270",
+            x_state: "left",
+            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"]
+        }
+    ];
+
+    let mut current_orient: &Orientation = &orientations[0];
+
     loop {
         let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
         let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
-        let x = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
-        let y = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+        let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+        let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
-        if x < -500000 {
-            if y > 500000 {
-                new_state = "180";
-                x_state = "normal";
-                matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
-            } else {
-                new_state = "90";
-                x_state = "right";
-                matrix = ["0", "-1", "1", "1", "0", "0", "0", "0", "1"];
-            }
-        } else if x > 500000 {
-            if y > 500000 {
-                new_state = "180";
-                x_state = "inverted";
-                matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
-            } else {
-                new_state = "270";
-                x_state = "left";
-                matrix = ["0", "1", "0", "-1", "0", "1", "0", "0", "1"];
-            }
-        } else {
-            if y > 500000 {
-                new_state = "180";
-                x_state = "inverted";
-                matrix = ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"];
-            } else {
-                new_state = "normal";
-                x_state = "normal";
-                matrix = ["1", "0", "0", "0", "1", "0", "0", "0", "1"];
+        // Normalize vectors
+        let x: f32 = (x_clean as f32)/1e6;
+        let y: f32 = (y_clean as f32)/1e6;
+
+        for (_i, orient) in orientations.iter().enumerate() {
+            let d = (x-orient.vector.0).powf(2.0) + (y-orient.vector.1).powf(2.0);
+            if d < threshold.parse::<f32>().unwrap_or(0.5) {
+                current_orient = &orient;
+                break;
             }
         }
+
+        new_state = current_orient.new_state;
+        x_state = current_orient.x_state;
+        matrix = current_orient.matrix;
 
         if new_state != old_state {
             match backend {
