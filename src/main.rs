@@ -272,6 +272,7 @@ fn main() -> Result<(), String> {
         matrix = current_orient.matrix;
 
         if new_state != old_state {
+            let keyboard_state = if new_state == "normal" { "enabled" } else { "disabled" };
             match backend {
                 Backend::Sway => {
                     Command::new("swaymsg")
