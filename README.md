@@ -56,5 +56,6 @@ there are the following args.
 --display // Set Display Device (eDP-1)
 --touchscreen // Set Touchscreen Device X11 (ELAN0732:00 04F3:22E1)
 --keyboard // Set keyboard to deactivate upon rotation
+--threshold // Set a rotation threshold between 0 and 1 (0.5)
 
 ```
