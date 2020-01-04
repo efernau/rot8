@@ -1,7 +1,7 @@
 [package]
 name = "rot8"
 version = "0.1.2"
-authors = ["efernau <e.fernau@efero.de>"]
+authors = ["efernau <e.fernau@efero.de>", "deadly_platypus <mail@geth.systems>"]
 license = "MIT"
 description = "automatic display rotation using built-in accelerometer"
 homepage = "https://github.com/efernau/rot8"
