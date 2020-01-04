@@ -191,7 +191,7 @@ fn main() -> Result<(), String> {
         Backend::Xorg => { /* Keyboard disabling in Xorg is not supported yet */ }
     }
 
-    let cmd_lines = App::new("rot8").version("0.1.1").args(&args);
+    let cmd_lines = App::new("rot8").version("0.1.3").args(&args);
 
     let matches = cmd_lines.get_matches();
 
