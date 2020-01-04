@@ -35,7 +35,7 @@ fn get_keyboards(backend: &Backend) -> Result<Vec<String>, String> {
                     .expect("Swaymsg get inputs command failed")
                     .stdout,
             )
-                .unwrap();
+            .unwrap();
 
             let mut keyboards = vec![];
             let deserialized: Vec<Value> = serde_json::from_str(&raw_inputs)
@@ -67,7 +67,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Swaymsg get outputs command failed to start")
                     .stdout,
             )
-                .unwrap();
+            .unwrap();
             let deserialized: Vec<SwayOutput> = serde_json::from_str(&raw_rotation_state)
                 .expect("Unable to deserialize swaymsg JSON output");
             for output in deserialized {
@@ -89,7 +89,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                     .expect("Xrandr get outputs command failed to start")
                     .stdout,
             )
-                .unwrap();
+            .unwrap();
             let xrandr_output_pattern = regex::Regex::new(format!(
                 r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
                 regex::escape(display),
@@ -112,7 +112,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 "Unable to determine rotation state: display {} not found in xrandr output",
                 display
             )
-                .to_owned());
+            .to_owned());
         }
     }
 }
@@ -121,7 +121,7 @@ struct Orientation {
     vector: (f32, f32),
     new_state: &'static str,
     x_state: &'static str,
-    matrix: [&'static str; 9]
+    matrix: [&'static str; 9],
 }
 
 fn main() -> Result<(), String> {
@@ -151,27 +151,31 @@ fn main() -> Result<(), String> {
         Arg::with_name("sleep")
             .default_value("500")
             .long("sleep")
+            .short("s")
             .value_name("SLEEP")
             .help("Set sleep millis")
             .takes_value(true),
         Arg::with_name("display")
             .default_value("eDP-1")
             .long("display")
+            .short("d")
             .value_name("DISPLAY")
             .help("Set Display Device")
             .takes_value(true),
         Arg::with_name("touchscreen")
             .default_value("ELAN0732:00 04F3:22E1")
             .long("touchscreen")
+            .short("i")
             .value_name("TOUCHSCREEN")
-            .help("Set Touchscreen Device (X11)")
+            .help("Set Touchscreen input Device (X11 only)")
             .takes_value(true),
         Arg::with_name("threshold")
             .default_value("0.5")
             .long("threshold")
+            .short("t")
             .value_name("THRESHOLD")
             .help("Set a rotation threshold between 0 and 1")
-            .takes_value(true)
+            .takes_value(true),
     ];
 
     match backend {
@@ -181,15 +185,13 @@ fn main() -> Result<(), String> {
                     .long("disable-keyboard")
                     .short("k")
                     .help("Disable keyboard for tablet modes (Sway only)")
-                    .takes_value(false)
+                    .takes_value(false),
             );
         }
         Backend::Xorg => { /* Keyboard disabling in Xorg is not supported yet */ }
     }
 
-    let cmd_lines = App::new("rot8")
-        .version("0.1.1")
-        .args(&args);
+    let cmd_lines = App::new("rot8").version("0.1.1").args(&args);
 
     let matches = cmd_lines.get_matches();
 
@@ -225,26 +227,26 @@ fn main() -> Result<(), String> {
             vector: (0.0, -1.0),
             new_state: "normal",
             x_state: "normal",
-            matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"]
+            matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
         },
         Orientation {
             vector: (0.0, 1.0),
             new_state: "180",
             x_state: "inverted",
-            matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"]
+            matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
         },
         Orientation {
             vector: (-1.0, 0.0),
             new_state: "90",
             x_state: "right",
-            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"]
+            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
         },
         Orientation {
             vector: (1.0, 0.0),
             new_state: "270",
             x_state: "left",
-            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"]
-        }
+            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
+        },
     ];
 
     let mut current_orient: &Orientation = &orientations[0];
@@ -256,11 +258,11 @@ fn main() -> Result<(), String> {
         let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
         // Normalize vectors
-        let x: f32 = (x_clean as f32)/1e6;
-        let y: f32 = (y_clean as f32)/1e6;
+        let x: f32 = (x_clean as f32) / 1e6;
+        let y: f32 = (y_clean as f32) / 1e6;
 
         for (_i, orient) in orientations.iter().enumerate() {
-            let d = (x-orient.vector.0).powf(2.0) + (y-orient.vector.1).powf(2.0);
+            let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
             if d < threshold.parse::<f32>().unwrap_or(0.5) {
                 current_orient = &orient;
                 break;
@@ -272,7 +274,11 @@ fn main() -> Result<(), String> {
         matrix = current_orient.matrix;
 
         if new_state != old_state {
-            let keyboard_state = if new_state == "normal" { "enabled" } else { "disabled" };
+            let keyboard_state = if new_state == "normal" {
+                "enabled"
+            } else {
+                "disabled"
+            };
             match backend {
                 Backend::Sway => {
                     Command::new("swaymsg")
@@ -286,7 +292,7 @@ fn main() -> Result<(), String> {
                         .expect("Swaymsg rotate command wait failed");
                     if disable_keyboard {
                         for keyboard in &keyboards {
-//                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
+                            //                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
                             Command::new("swaymsg")
                                 .arg("input")
                                 .arg(keyboard)
