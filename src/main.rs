@@ -239,13 +239,13 @@ fn main() -> Result<(), String> {
             vector: (-1.0, 0.0),
             new_state: "90",
             x_state: "right",
-            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
+            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
         },
         Orientation {
             vector: (1.0, 0.0),
             new_state: "270",
             x_state: "left",
-            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
+            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
         },
     ];
 
@@ -317,9 +317,7 @@ fn main() -> Result<(), String> {
                     Command::new("xinput")
                         .arg("set-prop")
                         .arg(touchscreen)
-                        .arg("Coordinate")
-                        .arg("Transformation")
-                        .arg("Matrix")
+                        .arg("Coordinate Transformation Matrix")
                         .args(&matrix)
                         .spawn()
                         .expect("Xinput rotate command failed to start")
