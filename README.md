@@ -28,7 +28,7 @@ For Sway map your input to the output device:
 
 ```
 
-$ swaymsg <INPUTDEVICE> map_to_output <OUTPUTDEVICE>
+$ swaymsg input <INPUTDEVICE> map_to_output <OUTPUTDEVICE>
 
 ```
 
