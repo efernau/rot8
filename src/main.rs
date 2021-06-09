@@ -176,6 +176,31 @@ fn main() -> Result<(), String> {
             .value_name("THRESHOLD")
             .help("Set a rotation threshold between 0 and 1")
             .takes_value(true),
+	Arg::with_name("x_file")
+            .default_value("<auto-detected>")
+            .long("x-file")
+            .short("x")
+            .value_name("X_FILE")
+            .help("Set file path for accelerator x axis (e.g. /sys/bus/iio/devices/iio:device0/in_accel_x_raw)")
+            .takes_value(true),
+	Arg::with_name("y_file")
+            .default_value("<auto-detected>")
+            .long("y-file")
+            .short("y")
+            .value_name("Y_FILE")
+            .help("Set file path for accelerator y axis (e.g. /sys/bus/iio/devices/iio:device0/in_accel_y_raw)")
+            .takes_value(true),
+	Arg::with_name("x_inv")
+            .long("x-invert")
+            .short("n")
+            .help("Invert the accelerator x axis value")
+            .takes_value(false),
+	Arg::with_name("y_inv")
+            .long("y-invert")
+            .short("m")
+            .help("Invert the accelerator y axis value")
+            .takes_value(false),
+
     ];
 
     match backend {
@@ -200,6 +225,10 @@ fn main() -> Result<(), String> {
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
     let disable_keyboard = matches.is_present("keyboard");
     let threshold = matches.value_of("threshold").unwrap_or("default.conf");
+    let x_file = matches.value_of("x_file").unwrap_or("");
+    let y_file = matches.value_of("y_file").unwrap_or("");
+    let x_mult = if matches.is_present("x_inv") { -1.0_f32 } else { 1.0_f32 };
+    let y_mult = if matches.is_present("y_inv") { -1.0_f32 } else { 1.0_f32 }; 
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
 
@@ -220,6 +249,12 @@ fn main() -> Result<(), String> {
             }
             Err(e) => println!("{:?}", e),
         }
+    }
+    if x_file.len() > 0 {
+    	path_x = x_file.to_string();
+    }
+    if y_file.len() > 0 {
+    	path_y = y_file.to_string();
     }
 
     let orientations = [
@@ -257,9 +292,9 @@ fn main() -> Result<(), String> {
         let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
         let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
-        // Normalize vectors
-        let x: f32 = (x_clean as f32) / 1e6;
-        let y: f32 = (y_clean as f32) / 1e6;
+        // Normalize vectors and apply multiplier
+        let x: f32 = (x_clean as f32) / 1e6 * x_mult;
+        let y: f32 = (y_clean as f32) / 1e6 * y_mult;
 
         for (_i, orient) in orientations.iter().enumerate() {
             let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
