@@ -3,10 +3,10 @@
 //! This is the abstraction that represents something like a gyroscope or other source of
 //! desired rotation.
 
-mod dummy;
+pub mod dummy;
 
 #[cfg(target_os = "linux")]
-mod linux_iio;
+pub mod linux_iio;
 
 use crate::error::Result;
 use crate::orientation::Rotation;

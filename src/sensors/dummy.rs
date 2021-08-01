@@ -40,14 +40,20 @@ mod tests {
     #[async_std::test]
     async fn create_sensor() -> Result<()> {
         let driver = DummyCreator {};
-        assert_eq!(driver.available_sensors().await?, ["0", "90", "180", "270"]
-            .iter()
-            .map(|s| String::from(*s))
-            .collect::<Vec<String>>());
+        assert_eq!(
+            driver.available_sensors().await?,
+            ["0", "90", "180", "270"]
+                .iter()
+                .map(|s| String::from(*s))
+                .collect::<Vec<String>>()
+        );
 
         for sensor_arg in driver.available_sensors().await? {
             let sensor = driver.create_sensor(sensor_arg.clone()).await?;
-            assert_eq!(sensor.get_rotation().await?, Rotation::from_degrees(sensor_arg.parse::<isize>().unwrap())?)
+            assert_eq!(
+                sensor.get_rotation().await?,
+                Rotation::from_degrees(sensor_arg.parse::<isize>().unwrap())?
+            )
         }
 
         Ok(())
