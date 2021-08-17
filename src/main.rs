@@ -177,8 +177,9 @@ fn main() -> Result<(), String> {
             .help("Set a rotation threshold between 0 and 1")
             .takes_value(true),
         Arg::with_name("normalization-factor")
-            .default_value("6")
+            .default_value("1e6")
             .long("normalization-factor")
+            .short("n")
             .value_name("NORMALIZATION_FACTOR")
             .help("Set factor for sensor value normalization")
             .takes_value(true),
