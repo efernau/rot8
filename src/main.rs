@@ -176,6 +176,13 @@ fn main() -> Result<(), String> {
             .value_name("THRESHOLD")
             .help("Set a rotation threshold between 0 and 1")
             .takes_value(true),
+        Arg::with_name("normalization-factor")
+            .default_value("1e6")
+            .long("normalization-factor")
+            .short("n")
+            .value_name("NORMALIZATION_FACTOR")
+            .help("Set factor for sensor value normalization")
+            .takes_value(true),
     ];
 
     match backend {
@@ -202,6 +209,9 @@ fn main() -> Result<(), String> {
     let threshold = matches.value_of("threshold").unwrap_or("default.conf");
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
+
+    let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
+    let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
     let keyboards = get_keyboards(&backend)?;
 
@@ -258,8 +268,8 @@ fn main() -> Result<(), String> {
         let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
         // Normalize vectors
-        let x: f32 = (x_clean as f32) / 1e6;
-        let y: f32 = (y_clean as f32) / 1e6;
+        let x: f32 = (x_clean as f32) / normalization_factor;
+        let y: f32 = (y_clean as f32) / normalization_factor;
 
         for (_i, orient) in orientations.iter().enumerate() {
             let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
