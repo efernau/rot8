@@ -210,9 +210,7 @@ fn main() -> Result<(), String> {
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
 
-    let normalization_factor = matches
-        .value_of("normalization-factor")
-        .unwrap_or("default.conf");
+    let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
     let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
     let keyboards = get_keyboards(&backend)?;
