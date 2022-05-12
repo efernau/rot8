@@ -128,6 +128,7 @@ fn main() -> Result<(), String> {
     let mut new_state: &str;
     let mut path_x: String = "".to_string();
     let mut path_y: String = "".to_string();
+    let mut path_z: String = "".to_string();
     let mut matrix: [&str; 9];
     let mut x_state: &str;
 
@@ -176,6 +177,28 @@ fn main() -> Result<(), String> {
             .value_name("THRESHOLD")
             .help("Set a rotation threshold between 0 and 1")
             .takes_value(true),
+        Arg::with_name("invert-x")
+            .long("invert-x")
+            .short("X")
+            .help("Invert readings from the HW x axis")
+            .takes_value(false),
+        Arg::with_name("invert-y")
+            .long("invert-y")
+            .short("Y")
+            .help("Invert readings from the HW y axis")
+            .takes_value(false),
+        Arg::with_name("invert-z")
+            .long("invert-z")
+            .short("Z")
+            .help("Invert readings from the HW z axis")
+            .takes_value(false),
+        Arg::with_name("xy")
+            .default_value("xy")
+            .long("xy")
+            .value_name("XY")
+            .help("Map hardware accelerometer axes to internal x and y respectively")
+            .possible_values(&["xy", "yx", "zy", "yz", "xz", "zx"])
+            .takes_value(true),
         Arg::with_name("normalization-factor")
             .default_value("1e6")
             .long("normalization-factor")
@@ -210,6 +233,13 @@ fn main() -> Result<(), String> {
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
     let mut old_state = old_state_owned.as_str();
 
+    let flip_x = matches.is_present("invert-x");
+    let flip_y = matches.is_present("invert-y");
+    let flip_z = matches.is_present("invert-z");
+    let mut xy = matches.value_of("xy").unwrap_or("xy").chars();
+    let x_source = xy.next().unwrap();
+    let y_source = xy.next().unwrap();
+
     let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
     let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
@@ -223,7 +253,7 @@ fn main() -> Result<(), String> {
                 } else if path.to_str().unwrap().contains("y_raw") {
                     path_y = path.to_str().unwrap().to_owned();
                 } else if path.to_str().unwrap().contains("z_raw") {
-                    continue;
+                    path_z = path.to_str().unwrap().to_owned();
                 } else {
                     panic!("Unknown accelerometer device path {:?}", path);
                 }
@@ -264,12 +294,37 @@ fn main() -> Result<(), String> {
     loop {
         let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
         let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
+        let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
         let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
         let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+        let z_clean = z_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
         // Normalize vectors
-        let x: f32 = (x_clean as f32) / normalization_factor;
-        let y: f32 = (y_clean as f32) / normalization_factor;
+        let mut mut_x: f32 = (x_clean as f32) / normalization_factor;
+        let mut mut_y: f32 = (y_clean as f32) / normalization_factor;
+        let mut mut_z: f32 = (z_clean as f32) / normalization_factor;
+
+        // Apply inversions
+        if flip_x {
+            mut_x = -mut_x;
+        }
+        if flip_y {
+            mut_y = -mut_y;
+        }
+        if flip_z {
+            mut_z = -mut_z;
+        }
+        // Switch axes as requested
+        let x = match x_source {
+            'y' => mut_y,
+            'z' => mut_z,
+            _ => mut_x,
+        };
+        let y = match y_source {
+            'x' => mut_x,
+            'z' => mut_z,
+            _ => mut_y,
+        };
 
         for (_i, orient) in orientations.iter().enumerate() {
             let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
