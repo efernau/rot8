@@ -3,11 +3,13 @@
 ## automatic display rotation using built-in accelerometer
 
 Automatic rotate modern Linux desktop screen and input devices. Handy for
-convertible touchscreen notebooks like the Kaby Lake model of the HP Spectre x360.
+convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or Linux phone like Pinephone.
 
 Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
 
-Available in the Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/).
+Available in:
+Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/).
+Void Package: [rot8-git](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
 
 Rust language and the cargo package manager are required to build the binary.
 
@@ -57,5 +59,9 @@ there are the following args.
 --touchscreen // Set Touchscreen Device X11 (ELAN0732:00 04F3:22E1)
 --keyboard // Set keyboard to deactivate upon rotation
 --threshold // Set a rotation threshold between 0 and 1 (0.5)
+--normalization-factor // Set factor for sensor value normalization (1e6)
+--invert-x // Invert readings from the HW x axis
+--invert-y // Invert readings from the HW y axis
+--invert-z // Invert readings from the HW z axis
 
 ```
