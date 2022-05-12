@@ -8,8 +8,10 @@ convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or L
 Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
 
 Available in:
-Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/).
-Void Package: [rot8-git](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
+
+Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/)
+
+Void Package: [rot8](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
 
 Rust language and the cargo package manager are required to build the binary.
 
