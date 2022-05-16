@@ -149,6 +149,11 @@ fn main() -> Result<(), String> {
     };
 
     let mut args = vec![
+        Arg::with_name("oneshot")
+            .long("oneshot")
+            .short("O")
+            .help("Instead of running continuously, just check the accelerometer and perform screen rotation if necessary once")
+            .takes_value(false),
         Arg::with_name("sleep")
             .default_value("500")
             .long("sleep")
@@ -225,6 +230,7 @@ fn main() -> Result<(), String> {
 
     let matches = cmd_lines.get_matches();
 
+    let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
@@ -392,6 +398,11 @@ fn main() -> Result<(), String> {
             }
             old_state = new_state;
         }
+
+        if oneshot {
+            return Ok(());
+        }
+
         thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
     }
 }
