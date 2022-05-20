@@ -174,6 +174,7 @@ fn main() -> Result<(), String> {
             .short("i")
             .value_name("TOUCHSCREEN")
             .help("Set Touchscreen input Device (X11 only)")
+            .min_values(1)
             .takes_value(true),
         Arg::with_name("threshold")
             .default_value("0.5")
@@ -233,7 +234,7 @@ fn main() -> Result<(), String> {
     let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
-    let touchscreen = matches.value_of("touchscreen").unwrap_or("default.conf");
+    let touchscreens: Vec<&str> = matches.values_of("touchscreen").unwrap().collect();
     let disable_keyboard = matches.is_present("keyboard");
     let threshold = matches.value_of("threshold").unwrap_or("default.conf");
     let old_state_owned = get_window_server_rotation_state(display, &backend)?;
@@ -385,16 +386,19 @@ fn main() -> Result<(), String> {
                         .wait()
                         .expect("Xrandr rotate command wait failed");
 
-                    Command::new("xinput")
-                        .arg("set-prop")
-                        .arg(touchscreen)
-                        .arg("Coordinate Transformation Matrix")
-                        .args(&matrix)
-                        .spawn()
-                        .expect("Xinput rotate command failed to start")
-                        .wait()
-                        .expect("Xinput rotate command wait failed");
-                }
+                    // Support Touchscreen and Styli on some 2-in-1 devices
+                    for touchscreen in &touchscreens {
+                        Command::new("xinput")
+                            .arg("set-prop")
+                            .arg(touchscreen)
+                            .arg("Coordinate Transformation Matrix")
+                            .args(&matrix)
+                            .spawn()
+                            .expect("Xinput rotate command failed to start")
+                            .wait()
+                            .expect("Xinput rotate command wait failed");
+                        }
+                    }
             }
             old_state = new_state;
         }
