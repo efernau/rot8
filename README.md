@@ -56,14 +56,15 @@ there are the following args.
 
 ```
 
---sleep // Set sleep millis (500)
---display // Set Display Device (eDP-1)
---touchscreen // Set Touchscreen Device X11 (ELAN0732:00 04F3:22E1)
---keyboard // Set keyboard to deactivate upon rotation
---threshold // Set a rotation threshold between 0 and 1 (0.5)
---normalization-factor // Set factor for sensor value normalization (1e6)
---invert-x // Invert readings from the HW x axis
---invert-y // Invert readings from the HW y axis
---invert-z // Invert readings from the HW z axis
+--sleep                 // Set sleep millis (500)
+--display               // Set Display Device (eDP-1)
+--touchscreen           // Set Touchscreen Device X11, allows multiple devices (ELAN0732:00 04F3:22E1)
+--keyboard              // Set keyboard to deactivate upon rotation
+--threshold             // Set a rotation threshold between 0 and 1 (0.5)
+--normalization-factor  // Set factor for sensor value normalization (1e6)
+--invert-x              // Invert readings from the HW x axis
+--invert-y              // Invert readings from the HW y axis
+--invert-z              // Invert readings from the HW z axis
+--oneshot               // updates the screen rotation just once instead of continuously
 
 ```
