@@ -47,11 +47,9 @@ fn get_keyboards(backend: &Backend) -> Result<Vec<String>, String> {
                 }
             }
 
-            return Ok(keyboards);
+            Ok(keyboards)
         }
-        Backend::Xorg => {
-            return Ok(vec![]);
-        }
+        Backend::Xorg => Ok(vec![]),
     }
 }
 
@@ -79,8 +77,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
             return Err(format!(
                 "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
                 display
-            )
-                .to_owned());
+            ));
         }
         Backend::Xorg => {
             let raw_rotation_state = String::from_utf8(
@@ -94,7 +91,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
                 regex::escape(display),
             ).as_str()).unwrap();
-            for xrandr_output_line in raw_rotation_state.split("\n") {
+            for xrandr_output_line in raw_rotation_state.split('\n') {
                 if !xrandr_output_pattern.is_match(xrandr_output_line) {
                     continue;
                 }
@@ -111,8 +108,7 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
             return Err(format!(
                 "Unable to determine rotation state: display {} not found in xrandr output",
                 display
-            )
-            .to_owned());
+            ));
         }
     }
 }
@@ -132,16 +128,14 @@ fn main() -> Result<(), String> {
     let mut matrix: [&str; 9];
     let mut x_state: &str;
 
-    let backend = if String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
+    let backend = if !String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
         .unwrap()
-        .len()
-        >= 1
+        .is_empty()
     {
         Backend::Sway
-    } else if String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
+    } else if !String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
         .unwrap()
-        .len()
-        >= 1
+        .is_empty()
     {
         Backend::Xorg
     } else {
@@ -336,7 +330,7 @@ fn main() -> Result<(), String> {
         for (_i, orient) in orientations.iter().enumerate() {
             let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
             if d < threshold.parse::<f32>().unwrap_or(0.5) {
-                current_orient = &orient;
+                current_orient = orient;
                 break;
             }
         }
@@ -397,8 +391,8 @@ fn main() -> Result<(), String> {
                             .expect("Xinput rotate command failed to start")
                             .wait()
                             .expect("Xinput rotate command wait failed");
-                        }
                     }
+                }
             }
             old_state = new_state;
         }
