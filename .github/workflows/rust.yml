@@ -25,4 +25,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
+      run: cargo clippy
+      run: cargo fmt --check
       run: cargo build --verbose
