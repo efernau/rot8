@@ -327,7 +327,7 @@ fn main() -> Result<(), String> {
             _ => mut_y,
         };
 
-        for (_i, orient) in orientations.iter().enumerate() {
+        for orient in orientations.iter() {
             let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
             if d < threshold.parse::<f32>().unwrap_or(0.5) {
                 current_orient = orient;
