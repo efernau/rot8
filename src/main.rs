@@ -12,6 +12,8 @@ use glob::glob;
 use serde::Deserialize;
 use serde_json::Value;
 
+const ROT8_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 enum Backend {
     Sway,
     Xorg,
@@ -227,7 +229,7 @@ fn main() -> Result<(), String> {
         Backend::Xorg => { /* Keyboard disabling in Xorg is not supported yet */ }
     }
 
-    let cmd_lines = App::new("rot8").version("0.1.3").args(&args);
+    let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
 
     let matches = cmd_lines.get_matches();
 
