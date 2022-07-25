@@ -65,6 +65,7 @@ there are the following args.
 --invert-x              // Invert readings from the HW x axis
 --invert-y              // Invert readings from the HW y axis
 --invert-z              // Invert readings from the HW z axis
---oneshot               // updates the screen rotation just once instead of continuously
+--oneshot               // Updates the screen rotation just once instead of continuously
+--version               // Returns the rot8 version
 
 ```
