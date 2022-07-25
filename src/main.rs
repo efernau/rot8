@@ -235,7 +235,7 @@ fn main() -> Result<(), String> {
 
     if matches.is_present("version") {
         println!("{}", ROT8_VERSION);
-        return Ok(())
+        return Ok(());
     }
 
     let oneshot = matches.is_present("oneshot");
