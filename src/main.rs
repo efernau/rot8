@@ -208,6 +208,12 @@ fn main() -> Result<(), String> {
             .value_name("NORMALIZATION_FACTOR")
             .help("Set factor for sensor value normalization")
             .takes_value(true),
+        Arg::with_name("version")
+            .long("version")
+            .short("V")
+            .value_name("VERSION")
+            .help("Displays rot8 version")
+            .takes_value(false)
     ];
 
     match backend {
@@ -226,6 +232,11 @@ fn main() -> Result<(), String> {
     let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
 
     let matches = cmd_lines.get_matches();
+
+    if matches.is_present("version") {
+        println!("{}", ROT8_VERSION);
+        return Ok(());
+    }
 
     let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
