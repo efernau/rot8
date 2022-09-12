@@ -138,13 +138,11 @@ fn main() -> Result<(), String> {
     } else if !String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
         .unwrap()
         .is_empty()
+        || !String::from_utf8(Command::new("pidof").arg("X").output().unwrap().stdout)
+            .unwrap()
+            .is_empty()
     {
         Backend::Xorg
-    } else if !String::from_utf8(Command::new("pidof").arg("X").output().unwrap().stdout)
-    .unwrap()
-    .is_empty()
-    {
-    Backend::Xorg
     } else {
         return Err("Unable to find Sway or Xorg procceses".to_owned());
     };
