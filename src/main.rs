@@ -76,10 +76,10 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 }
             }
 
-            return Err(format!(
+            Err(format!(
                 "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
                 display
-            ));
+            ))
         }
         Backend::Xorg => {
             let raw_rotation_state = String::from_utf8(
@@ -107,10 +107,10 @@ fn get_window_server_rotation_state(display: &str, backend: &Backend) -> Result<
                 }
             }
 
-            return Err(format!(
+            Err(format!(
                 "Unable to determine rotation state: display {} not found in xrandr output",
                 display
-            ));
+            ))
         }
     }
 }
