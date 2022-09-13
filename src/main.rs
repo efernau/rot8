@@ -3,6 +3,7 @@ extern crate glob;
 extern crate regex;
 
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
@@ -263,152 +264,155 @@ fn main() -> Result<(), String> {
                     path_y = path.to_str().unwrap().to_owned();
                 } else if path.to_str().unwrap().contains("z_raw") {
                     path_z = path.to_str().unwrap().to_owned();
-                } else {
-                    panic!("Unknown accelerometer device path {:?}", path);
                 }
             }
             Err(e) => println!("{:?}", e),
         }
     }
 
-    let orientations = [
-        Orientation {
-            vector: (0.0, -1.0),
-            new_state: "normal",
-            x_state: "normal",
-            matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
-        },
-        Orientation {
-            vector: (0.0, 1.0),
-            new_state: "180",
-            x_state: "inverted",
-            matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
-        },
-        Orientation {
-            vector: (-1.0, 0.0),
-            new_state: "90",
-            x_state: "right",
-            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
-        },
-        Orientation {
-            vector: (1.0, 0.0),
-            new_state: "270",
-            x_state: "left",
-            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
-        },
-    ];
+    if !Path::new(&path_x).exists() && !Path::new(&path_y).exists() && !Path::new(&path_z).exists()
+    {
+        Err("Unknown Accelerometer Device".to_string())
+    } else {
+        let orientations = [
+            Orientation {
+                vector: (0.0, -1.0),
+                new_state: "normal",
+                x_state: "normal",
+                matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
+            },
+            Orientation {
+                vector: (0.0, 1.0),
+                new_state: "180",
+                x_state: "inverted",
+                matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
+            },
+            Orientation {
+                vector: (-1.0, 0.0),
+                new_state: "90",
+                x_state: "right",
+                matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
+            },
+            Orientation {
+                vector: (1.0, 0.0),
+                new_state: "270",
+                x_state: "left",
+                matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
+            },
+        ];
 
-    let mut current_orient: &Orientation = &orientations[0];
+        let mut current_orient: &Orientation = &orientations[0];
 
-    loop {
-        let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
-        let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
-        let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
-        let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
-        let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
-        let z_clean = z_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+        loop {
+            let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
+            let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
+            let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
+            let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+            let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+            let z_clean = z_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
 
-        // Normalize vectors
-        let mut mut_x: f32 = (x_clean as f32) / normalization_factor;
-        let mut mut_y: f32 = (y_clean as f32) / normalization_factor;
-        let mut mut_z: f32 = (z_clean as f32) / normalization_factor;
+            // Normalize vectors
+            let mut mut_x: f32 = (x_clean as f32) / normalization_factor;
+            let mut mut_y: f32 = (y_clean as f32) / normalization_factor;
+            let mut mut_z: f32 = (z_clean as f32) / normalization_factor;
 
-        // Apply inversions
-        if flip_x {
-            mut_x = -mut_x;
-        }
-        if flip_y {
-            mut_y = -mut_y;
-        }
-        if flip_z {
-            mut_z = -mut_z;
-        }
-        // Switch axes as requested
-        let x = match x_source {
-            'y' => mut_y,
-            'z' => mut_z,
-            _ => mut_x,
-        };
-        let y = match y_source {
-            'x' => mut_x,
-            'z' => mut_z,
-            _ => mut_y,
-        };
-
-        for orient in orientations.iter() {
-            let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
-            if d < threshold.parse::<f32>().unwrap_or(0.5) {
-                current_orient = orient;
-                break;
+            // Apply inversions
+            if flip_x {
+                mut_x = -mut_x;
             }
-        }
-
-        new_state = current_orient.new_state;
-        x_state = current_orient.x_state;
-        matrix = current_orient.matrix;
-
-        if new_state != old_state {
-            let keyboard_state = if new_state == "normal" {
-                "enabled"
-            } else {
-                "disabled"
+            if flip_y {
+                mut_y = -mut_y;
+            }
+            if flip_z {
+                mut_z = -mut_z;
+            }
+            // Switch axes as requested
+            let x = match x_source {
+                'y' => mut_y,
+                'z' => mut_z,
+                _ => mut_x,
             };
-            match backend {
-                Backend::Sway => {
-                    Command::new("swaymsg")
-                        .arg("output")
-                        .arg(display)
-                        .arg("transform")
-                        .arg(new_state)
-                        .spawn()
-                        .expect("Swaymsg rotate command failed to start")
-                        .wait()
-                        .expect("Swaymsg rotate command wait failed");
-                    if disable_keyboard {
-                        for keyboard in &keyboards {
-                            //                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
-                            Command::new("swaymsg")
-                                .arg("input")
-                                .arg(keyboard)
-                                .arg("events")
-                                .arg(keyboard_state)
+            let y = match y_source {
+                'x' => mut_x,
+                'z' => mut_z,
+                _ => mut_y,
+            };
+
+            for orient in orientations.iter() {
+                let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
+                if d < threshold.parse::<f32>().unwrap_or(0.5) {
+                    current_orient = orient;
+                    break;
+                }
+            }
+
+            new_state = current_orient.new_state;
+            x_state = current_orient.x_state;
+            matrix = current_orient.matrix;
+
+            if new_state != old_state {
+                let keyboard_state = if new_state == "normal" {
+                    "enabled"
+                } else {
+                    "disabled"
+                };
+                match backend {
+                    Backend::Sway => {
+                        Command::new("swaymsg")
+                            .arg("output")
+                            .arg(display)
+                            .arg("transform")
+                            .arg(new_state)
+                            .spawn()
+                            .expect("Swaymsg rotate command failed to start")
+                            .wait()
+                            .expect("Swaymsg rotate command wait failed");
+                        if disable_keyboard {
+                            for keyboard in &keyboards {
+                                //                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
+                                Command::new("swaymsg")
+                                    .arg("input")
+                                    .arg(keyboard)
+                                    .arg("events")
+                                    .arg(keyboard_state)
+                                    .spawn()
+                                    .expect("Swaymsg keyboard command failed to start")
+                                    .wait()
+                                    .expect("Swaymsg keyboard command wait failed");
+                            }
+                        }
+                    }
+                    Backend::Xorg => {
+                        Command::new("xrandr")
+                            .arg("-o")
+                            .arg(x_state)
+                            .spawn()
+                            .expect("Xrandr rotate command failed to start")
+                            .wait()
+                            .expect("Xrandr rotate command wait failed");
+
+                        // Support Touchscreen and Styli on some 2-in-1 devices
+                        for touchscreen in &touchscreens {
+                            Command::new("xinput")
+                                .arg("set-prop")
+                                .arg(touchscreen)
+                                .arg("Coordinate Transformation Matrix")
+                                .args(matrix)
                                 .spawn()
-                                .expect("Swaymsg keyboard command failed to start")
+                                .expect("Xinput rotate command failed to start")
                                 .wait()
-                                .expect("Swaymsg keyboard command wait failed");
+                                .expect("Xinput rotate command wait failed");
                         }
                     }
                 }
-                Backend::Xorg => {
-                    Command::new("xrandr")
-                        .arg("-o")
-                        .arg(x_state)
-                        .spawn()
-                        .expect("Xrandr rotate command failed to start")
-                        .wait()
-                        .expect("Xrandr rotate command wait failed");
-
-                    // Support Touchscreen and Styli on some 2-in-1 devices
-                    for touchscreen in &touchscreens {
-                        Command::new("xinput")
-                            .arg("set-prop")
-                            .arg(touchscreen)
-                            .arg("Coordinate Transformation Matrix")
-                            .args(matrix)
-                            .spawn()
-                            .expect("Xinput rotate command failed to start")
-                            .wait()
-                            .expect("Xinput rotate command wait failed");
-                    }
-                }
+                old_state = new_state;
             }
-            old_state = new_state;
-        }
 
-        if oneshot {
-            return Ok(());
-        }
+            if oneshot {
+                return Ok(());
+            }
 
-        thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
+            thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
+        }
     }
 }
