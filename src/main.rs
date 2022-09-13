@@ -147,30 +147,30 @@ fn main() -> Result<(), String> {
         return Err("Unable to find Sway or Xorg procceses".to_owned());
     };
 
-    let mut args = vec![
+    let args = vec![
         Arg::with_name("oneshot")
             .long("oneshot")
-            .short("O")
+            .short('O')
             .help("Instead of running continuously, just check the accelerometer and perform screen rotation if necessary once")
             .takes_value(false),
         Arg::with_name("sleep")
             .default_value("500")
             .long("sleep")
-            .short("s")
+            .short('s')
             .value_name("SLEEP")
             .help("Set sleep millis")
             .takes_value(true),
         Arg::with_name("display")
             .default_value("eDP-1")
             .long("display")
-            .short("d")
+            .short('d')
             .value_name("DISPLAY")
             .help("Set Display Device")
             .takes_value(true),
         Arg::with_name("touchscreen")
             .default_value("ELAN0732:00 04F3:22E1")
             .long("touchscreen")
-            .short("i")
+            .short('i')
             .value_name("TOUCHSCREEN")
             .help("Set Touchscreen input Device (X11 only)")
             .min_values(1)
@@ -178,59 +178,51 @@ fn main() -> Result<(), String> {
         Arg::with_name("threshold")
             .default_value("0.5")
             .long("threshold")
-            .short("t")
+            .short('t')
             .value_name("THRESHOLD")
             .help("Set a rotation threshold between 0 and 1")
             .takes_value(true),
         Arg::with_name("invert-x")
             .long("invert-x")
-            .short("X")
+            .short('X')
             .help("Invert readings from the HW x axis")
             .takes_value(false),
         Arg::with_name("invert-y")
             .long("invert-y")
-            .short("Y")
+            .short('Y')
             .help("Invert readings from the HW y axis")
             .takes_value(false),
         Arg::with_name("invert-z")
             .long("invert-z")
-            .short("Z")
+            .short('Z')
             .help("Invert readings from the HW z axis")
             .takes_value(false),
-        Arg::with_name("xy")
+        Arg::with_name("invert-xy")
             .default_value("xy")
-            .long("xy")
+            .long("invert-xy")
             .value_name("XY")
             .help("Map hardware accelerometer axes to internal x and y respectively")
-            .possible_values(&["xy", "yx", "zy", "yz", "xz", "zx"])
+            .possible_values(["xy", "yx", "zy", "yz", "xz", "zx"])
             .takes_value(true),
         Arg::with_name("normalization-factor")
             .default_value("1e6")
             .long("normalization-factor")
-            .short("n")
+            .short('n')
             .value_name("NORMALIZATION_FACTOR")
             .help("Set factor for sensor value normalization")
             .takes_value(true),
+        Arg::with_name("keyboard")
+            .long("disable-keyboard")
+            .short('k')
+            .help("Disable keyboard for tablet modes (Sway only)")
+            .takes_value(false),
         Arg::with_name("version")
             .long("version")
-            .short("V")
+            .short('V')
             .value_name("VERSION")
             .help("Displays rot8 version")
             .takes_value(false)
     ];
-
-    match backend {
-        Backend::Sway => {
-            args.push(
-                Arg::with_name("keyboard")
-                    .long("disable-keyboard")
-                    .short("k")
-                    .help("Disable keyboard for tablet modes (Sway only)")
-                    .takes_value(false),
-            );
-        }
-        Backend::Xorg => { /* Keyboard disabling in Xorg is not supported yet */ }
-    }
 
     let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
 
@@ -253,7 +245,7 @@ fn main() -> Result<(), String> {
     let flip_x = matches.is_present("invert-x");
     let flip_y = matches.is_present("invert-y");
     let flip_z = matches.is_present("invert-z");
-    let mut xy = matches.value_of("xy").unwrap_or("xy").chars();
+    let mut xy = matches.value_of("invert-xy").unwrap_or("xy").chars();
     let x_source = xy.next().unwrap();
     let y_source = xy.next().unwrap();
 
@@ -402,7 +394,7 @@ fn main() -> Result<(), String> {
                             .arg("set-prop")
                             .arg(touchscreen)
                             .arg("Coordinate Transformation Matrix")
-                            .args(&matrix)
+                            .args(matrix)
                             .spawn()
                             .expect("Xinput rotate command failed to start")
                             .wait()
