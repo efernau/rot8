@@ -7,11 +7,17 @@ convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or L
 
 Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
 
+### installation
+
+#### packages
+
 Available in:
 
 Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/)
 
 Void Package: [rot8](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
+
+#### manually build from source
 
 Rust language and the cargo package manager are required to build the binary.
 
@@ -27,6 +33,8 @@ or
 $ cargo install rot8
 
 ```
+
+### usage
 
 For Sway map your input to the output device:
 
@@ -52,15 +60,17 @@ rot8 --touchscreen <TOUCHSCREEN>
 
 ```
 
-there are the following args.
+This will start the daemon running, continuously checking for rotations.
+
+There are the following args:
 
 ```
 
---sleep                 // Set sleep millis (500)
+--sleep                 // Set millis to sleep between rotation checks (500)
 --display               // Set Display Device (eDP-1)
 --touchscreen           // Set Touchscreen Device X11, allows multiple devices (ELAN0732:00 04F3:22E1)
---keyboard              // Set keyboard to deactivate upon rotation
---threshold             // Set a rotation threshold between 0 and 1 (0.5)
+--keyboard              // Set keyboard to deactivate upon rotation (Sway only)
+--threshold             // Set a rotation threshold between 0 and 1, higher is more sensitive (0.5)
 --normalization-factor  // Set factor for sensor value normalization (1e6)
 --invert-x              // Invert readings from the HW x axis
 --invert-y              // Invert readings from the HW y axis
@@ -69,3 +79,5 @@ there are the following args.
 --version               // Returns the rot8 version
 
 ```
+
+You may need to play with the normalization factor (try multiples of 10) and the axis inversions to get the accelerometer readings to calculate right.
