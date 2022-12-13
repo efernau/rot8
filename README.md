@@ -62,14 +62,14 @@ rot8 --touchscreen <TOUCHSCREEN>
 
 This will start the daemon running, continuously checking for rotations.
 
-There are the following args:
+There are the following args (defaults):
 
 ```
 
 --sleep                 // Set millis to sleep between rotation checks (500)
 --display               // Set Display Device (eDP-1)
 --touchscreen           // Set Touchscreen Device X11, allows multiple devices (ELAN0732:00 04F3:22E1)
---keyboard              // Set keyboard to deactivate upon rotation (Sway only)
+--keyboard              // Set keyboard to deactivate upon rotation, for Sway only
 --threshold             // Set a rotation threshold between 0 and 1, higher is more sensitive (0.5)
 --normalization-factor  // Set factor for sensor value normalization (1e6)
 --invert-x              // Invert readings from the HW x axis
