@@ -227,7 +227,7 @@ fn main() -> Result<(), String> {
             .long("beforehooks")
             .short('b')
             .value_name("BEFOREHOOKS")
-            .help("Run hook(s) before screen rotation. Passes environment variable $ORIENTATION. Comma-seperated.")
+            .help("Run hook(s) before screen rotation. Passes $ORIENTATION and $PREV_ORIENTATION to hooks. Comma-seperated.")
             .takes_value(true)
             .use_value_delimiter(true)
             .require_value_delimiter(true),
@@ -235,7 +235,7 @@ fn main() -> Result<(), String> {
             .long("hooks")
             .short('h')
             .value_name("HOOKS")
-            .help("Run hook(s) after screen rotation. Passes environment variable $ORIENTATION. Comma-seperated.")
+            .help("Run hook(s) after screen rotation. Passes $ORIENTATION and $PREV_ORIENTATION to hooks. Comma-seperated.")
             .takes_value(true)
             .use_value_delimiter(true)
             .require_value_delimiter(true)
@@ -374,6 +374,7 @@ fn main() -> Result<(), String> {
                         .arg("-c")
                         .arg(bhook)
                         .env("ORIENTATION", new_state)
+                        .env("PREV_ORIENATION", old_state)
                         .spawn()
                         .expect("A hook failed to start.")
                         .wait()
@@ -433,17 +434,18 @@ fn main() -> Result<(), String> {
                         }
                     }
                 }
-                old_state = new_state;
                 for hook in hooks.iter() {
                     Command::new("bash")
                         .arg("-c")
                         .arg(hook)
                         .env("ORIENTATION", new_state)
+                        .env("PREV_ORIENATION", old_state)
                         .spawn()
                         .expect("A hook failed to start.")
                         .wait()
                         .expect("Waiting for a hook failed.");
                 }
+                old_state = new_state;
             }
 
             if oneshot {
