@@ -254,10 +254,7 @@ fn main() -> Result<(), String> {
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreens: Vec<&str> = matches.values_of("touchscreen").unwrap().collect();
-    let hooks: Vec<&str> = matches
-        .values_of("hooks")
-        .unwrap_or_default()
-        .collect();
+    let hooks: Vec<&str> = matches.values_of("hooks").unwrap_or_default().collect();
     let beforehooks: Vec<&str> = matches
         .values_of("beforehooks")
         .unwrap_or_default()
