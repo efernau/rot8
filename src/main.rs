@@ -2,6 +2,8 @@ extern crate clap;
 extern crate glob;
 extern crate regex;
 
+mod wayland_app;
+
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -12,6 +14,8 @@ use clap::{App, Arg};
 use glob::glob;
 use serde::Deserialize;
 use serde_json::Value;
+use wayland_app::AppData;
+use wayland_client::{protocol::wl_output::Transform, Connection};
 
 const ROT8_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -131,6 +135,7 @@ fn main() -> Result<(), String> {
     let mut matrix: [&str; 9];
     let mut x_state: &str;
 
+    // TODO: detect wayland to determine backend, ideally while constructing connection
     let backend = if !String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
         .unwrap()
         .is_empty()
@@ -253,6 +258,15 @@ fn main() -> Result<(), String> {
     let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
     let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
+    let conn = Connection::connect_to_env().unwrap();
+    let wl_display = conn.display();
+    let mut event_queue = conn.new_event_queue();
+    let _registry = wl_display.get_registry(&event_queue.handle(), ());
+    let mut wayland_state = AppData::new(&mut event_queue, display.to_string());
+    event_queue.roundtrip(&mut wayland_state).unwrap();
+    // Roundtrip a second time to sync the outputs
+    event_queue.roundtrip(&mut wayland_state).unwrap();
+
     let keyboards = get_keyboards(&backend)?;
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
@@ -304,6 +318,10 @@ fn main() -> Result<(), String> {
         let mut current_orient: &Orientation = &orientations[0];
 
         loop {
+            event_queue
+                .roundtrip(&mut wayland_state)
+                .expect("Failed to read display changes.");
+
             let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
             let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
             let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
@@ -358,15 +376,14 @@ fn main() -> Result<(), String> {
                 };
                 match backend {
                     Backend::Sway => {
-                        Command::new("swaymsg")
-                            .arg("output")
-                            .arg(display)
-                            .arg("transform")
-                            .arg(new_state)
-                            .spawn()
-                            .expect("Swaymsg rotate command failed to start")
-                            .wait()
-                            .expect("Swaymsg rotate command wait failed");
+                        wayland_state.update_configuration(match new_state {
+                            "normal" => Transform::Normal,
+                            "90" => Transform::_270,
+                            "180" => Transform::_180,
+                            "270" => Transform::_90,
+                            &_ => Transform::Normal,
+                        });
+
                         if disable_keyboard {
                             for keyboard in &keyboards {
                                 //                            println!("swaymsg input {} events {}", keyboard, keyboard_state);
@@ -407,6 +424,10 @@ fn main() -> Result<(), String> {
                 }
                 old_state = new_state;
             }
+
+            event_queue
+                .roundtrip(&mut wayland_state)
+                .expect("Failed to apply display changes.");
 
             if oneshot {
                 return Ok(());
