@@ -158,7 +158,7 @@ fn main() -> Result<(), String> {
             {
                 Box::new(XLoop::new(display, touchscreens))
             } else {
-                return Err("Unable to find Sway or Xorg procceses".to_owned());
+                return Err("Unable to find Sway or Xorg processes".to_owned());
             }
         }
     };
