@@ -1,7 +1,7 @@
 use wayland_client::{
     event_created_child,
     protocol::{wl_output::Transform, wl_registry},
-    Connection, Dispatch, EventQueue, QueueHandle,
+    Connection, Dispatch, EventQueue, QueueHandle, WEnum,
 };
 use wayland_protocols_wlr::output_management::v1::client::{
     zwlr_output_configuration_head_v1::{self, ZwlrOutputConfigurationHeadV1},
@@ -11,7 +11,55 @@ use wayland_protocols_wlr::output_management::v1::client::{
     zwlr_output_mode_v1::{self, ZwlrOutputModeV1},
 };
 
-pub struct AppData {
+use crate::Orientation;
+
+use super::AppLoop;
+
+pub struct WaylandLoop {
+    state: AppData,
+    event_queue: EventQueue<AppData>,
+}
+
+impl WaylandLoop {
+    pub fn new(conn: Connection, target_display: &str) -> WaylandLoop {
+        let wl_display = conn.display();
+        let mut event_queue = conn.new_event_queue();
+        let _registry = wl_display.get_registry(&event_queue.handle(), ());
+        let mut state = AppData::new(&mut event_queue, target_display.to_string());
+        event_queue.roundtrip(&mut state).unwrap();
+        // Roundtrip a second time to sync the outputs
+        event_queue.roundtrip(&mut state).unwrap();
+        // TODO: bail out if output management protocol isn't available
+        WaylandLoop { state, event_queue }
+    }
+}
+impl AppLoop for WaylandLoop {
+    fn tick_always(&mut self) -> () {
+        self.event_queue
+            .roundtrip(&mut self.state)
+            .expect("Failed to read display changes.");
+    }
+    fn tick(&mut self, new_state: &Orientation) {
+        self.state.update_configuration(match new_state.new_state {
+            "normal" => Transform::Normal,
+            "90" => Transform::_270,
+            "180" => Transform::_180,
+            "270" => Transform::_90,
+            &_ => Transform::Normal,
+        });
+
+        self.event_queue
+            .flush()
+            .expect("Failed to apply display changes.");
+    }
+
+    fn get_rotation_state(&self, display: &str) -> Result<String, String> {
+        // TODO: implement
+        return Ok("normal".to_string());
+    }
+}
+
+struct AppData {
     target_display_name: String,
     target_head: Option<ZwlrOutputHeadV1>,
     output_manager: Option<ZwlrOutputManagerV1>,
@@ -39,8 +87,12 @@ impl AppData {
             .expect("Failed to create wayland output manager.");
         // The serial should be replaced after applying the new config, so we can
         // avoid cloning here.
-        let current_serial = std::mem::replace(&mut self.current_config_serial, None)
-            .expect("Failed to get current config.");
+        let current_serial = match self.current_config_serial {
+            Some(value) => value.clone(),
+            None => return,
+        };
+        self.current_config_serial = Some(current_serial + 1u32);
+
         let target_head = self
             .target_head
             .as_ref()
@@ -70,6 +122,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
             version,
         } = event
         {
+            println!("[{}] {} v{}", name, interface, version);
             if interface == "zwlr_output_manager_v1" {
                 _state.output_manager =
                     Some(registry.bind::<ZwlrOutputManagerV1, (), AppData>(name, version, qh, ()));
@@ -88,6 +141,7 @@ impl Dispatch<ZwlrOutputManagerV1, ()> for AppData {
         _: &QueueHandle<AppData>,
     ) {
         if let zwlr_output_manager_v1::Event::Done { serial } = event {
+            println!("Current config: {}", serial);
             _state.current_config_serial = Some(serial);
         }
     }
@@ -106,10 +160,25 @@ impl Dispatch<ZwlrOutputHeadV1, ()> for AppData {
         _: &Connection,
         _: &QueueHandle<AppData>,
     ) {
-        if let zwlr_output_head_v1::Event::Name { name } = event {
-            if name == _state.target_display_name {
-                _state.target_head = Some(head.clone());
+        match event {
+            zwlr_output_head_v1::Event::Name { name } => {
+                if name == _state.target_display_name {
+                    println!("Found target display: {}", name);
+                    _state.target_head = Some(head.clone());
+                }
             }
+            zwlr_output_head_v1::Event::Transform { transform } => {
+                println!(
+                    "New transform: {}",
+                    match transform {
+                        WEnum::Value(Transform::_90) => "90",
+                        WEnum::Value(Transform::_180) => "180",
+                        WEnum::Value(Transform::_270) => "270",
+                        _ => "normal",
+                    }
+                );
+            }
+            _ => {}
         }
     }
 
@@ -134,12 +203,27 @@ impl Dispatch<ZwlrOutputModeV1, ()> for AppData {
 impl Dispatch<ZwlrOutputConfigurationV1, ()> for AppData {
     fn event(
         _state: &mut Self,
-        _: &ZwlrOutputConfigurationV1,
-        _: zwlr_output_configuration_v1::Event,
+        config: &ZwlrOutputConfigurationV1,
+        event: zwlr_output_configuration_v1::Event,
         _: &(),
         _: &Connection,
         _: &QueueHandle<AppData>,
     ) {
+        match event {
+            zwlr_output_configuration_v1::Event::Succeeded => {
+                println!("Config applied successfully.");
+                config.destroy();
+            }
+            zwlr_output_configuration_v1::Event::Failed => {
+                println!("Failed to apply new config.");
+                config.destroy();
+            }
+            zwlr_output_configuration_v1::Event::Cancelled => {
+                println!("Config application cancelled.");
+                config.destroy();
+            }
+            _ => {}
+        }
     }
 }
 
