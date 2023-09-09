@@ -5,17 +5,17 @@ use wayland_client::Connection;
 
 use crate::Orientation;
 
-use super::{wlroots::WaylandLoop, AppLoop};
+use super::{wlroots::WaylandBackend, DisplayManager};
 
-pub struct SwayLoop {
-    wayland_loop: WaylandLoop,
+pub struct SwayBackend {
+    wayland_backend: WaylandBackend,
     manage_keyboard: bool,
 }
 
-impl SwayLoop {
-    pub fn new(conn: Connection, target_display: &str, manage_keyboard: bool) -> SwayLoop {
-        SwayLoop {
-            wayland_loop: WaylandLoop::new(conn, target_display),
+impl SwayBackend {
+    pub fn new(conn: Connection, target_display: &str, manage_keyboard: bool) -> SwayBackend {
+        SwayBackend {
+            wayland_backend: WaylandBackend::new(conn, target_display),
             manage_keyboard,
         }
     }
@@ -45,9 +45,9 @@ impl SwayLoop {
         keyboards
     }
 }
-impl AppLoop for SwayLoop {
+impl DisplayManager for SwayBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
-        self.wayland_loop.change_rotation_state(new_state);
+        self.wayland_backend.change_rotation_state(new_state);
 
         if !self.manage_keyboard {
             return;
@@ -58,7 +58,7 @@ impl AppLoop for SwayLoop {
         } else {
             "disabled"
         };
-        for keyboard in &SwayLoop::get_keyboards() {
+        for keyboard in &SwayBackend::get_keyboards() {
             Command::new("swaymsg")
                 .arg("input")
                 .arg(keyboard)
@@ -72,6 +72,6 @@ impl AppLoop for SwayLoop {
     }
 
     fn get_rotation_state(&mut self) -> Result<String, String> {
-        self.wayland_loop.get_rotation_state()
+        self.wayland_backend.get_rotation_state()
     }
 }

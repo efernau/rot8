@@ -13,15 +13,15 @@ use wayland_protocols_wlr::output_management::v1::client::{
 
 use crate::Orientation;
 
-use super::AppLoop;
+use super::DisplayManager;
 
-pub struct WaylandLoop {
+pub struct WaylandBackend {
     state: AppData,
     event_queue: EventQueue<AppData>,
 }
 
-impl WaylandLoop {
-    pub fn new(conn: Connection, target_display: &str) -> WaylandLoop {
+impl WaylandBackend {
+    pub fn new(conn: Connection, target_display: &str) -> WaylandBackend {
         let wl_display = conn.display();
         let mut event_queue = conn.new_event_queue();
         let _registry = wl_display.get_registry(&event_queue.handle(), ());
@@ -30,7 +30,7 @@ impl WaylandLoop {
         // Roundtrip a second time to sync the outputs
         event_queue.roundtrip(&mut state).unwrap();
         // TODO: bail out if output management protocol isn't available
-        WaylandLoop { state, event_queue }
+        WaylandBackend { state, event_queue }
     }
 
     fn read_socket(&mut self) {
@@ -45,7 +45,7 @@ impl WaylandLoop {
             .expect("Failed to apply display changes.");
     }
 }
-impl AppLoop for WaylandLoop {
+impl DisplayManager for WaylandBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         self.read_socket();
 

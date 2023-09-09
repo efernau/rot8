@@ -2,21 +2,21 @@ use std::process::Command;
 
 use crate::Orientation;
 
-use super::AppLoop;
+use super::DisplayManager;
 
-pub struct XLoop {
+pub struct XorgBackend {
     touchscreens: Vec<String>,
     target_display: String,
 }
-impl XLoop {
+impl XorgBackend {
     pub fn new(display: &str, touchscreens: Vec<String>) -> Self {
-        XLoop {
+        XorgBackend {
             target_display: display.into(),
             touchscreens,
         }
     }
 }
-impl AppLoop for XLoop {
+impl DisplayManager for XorgBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         Command::new("xrandr")
             .arg("-o")

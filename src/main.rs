@@ -10,10 +10,10 @@ use std::time::Duration;
 
 use clap::{App, Arg};
 use glob::glob;
-use wayland_client::Connection;
+use wayland_client;
 
 mod backends;
-use backends::{sway::SwayLoop, wlroots::WaylandLoop, xorg::XLoop, AppLoop};
+use backends::{sway::SwayBackend, wlroots::WaylandBackend, xorg::XorgBackend, DisplayManager};
 
 const ROT8_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -136,16 +136,16 @@ fn main() -> Result<(), String> {
     let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
     let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
-    let mut loop_runner: Box<dyn AppLoop> = match Connection::connect_to_env() {
+    let mut backend: Box<dyn DisplayManager> = match wayland_client::Connection::connect_to_env() {
         Ok(conn) => {
             // We are wayland
             if !String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
                 .unwrap()
                 .is_empty()
             {
-                Box::new(SwayLoop::new(conn, display, disable_keyboard))
+                Box::new(SwayBackend::new(conn, display, disable_keyboard))
             } else {
-                Box::new(WaylandLoop::new(conn, display))
+                Box::new(WaylandBackend::new(conn, display))
             }
         }
         Err(_) => {
@@ -156,14 +156,14 @@ fn main() -> Result<(), String> {
                     .unwrap()
                     .is_empty()
             {
-                Box::new(XLoop::new(display, touchscreens))
+                Box::new(XorgBackend::new(display, touchscreens))
             } else {
                 return Err("Unable to find Sway or Xorg processes".to_owned());
             }
         }
     };
 
-    let old_state_owned = loop_runner.get_rotation_state()?;
+    let old_state_owned = backend.get_rotation_state()?;
     let mut old_state = old_state_owned.as_str();
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
@@ -258,7 +258,7 @@ fn main() -> Result<(), String> {
             }
 
             if current_orient.new_state != old_state {
-                loop_runner.change_rotation_state(current_orient);
+                backend.change_rotation_state(current_orient);
                 old_state = current_orient.new_state;
             }
 
