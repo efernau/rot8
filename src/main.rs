@@ -156,14 +156,14 @@ fn main() -> Result<(), String> {
                     .unwrap()
                     .is_empty()
             {
-                Box::new(XLoop { touchscreens })
+                Box::new(XLoop::new(display, touchscreens))
             } else {
                 return Err("Unable to find Sway or Xorg procceses".to_owned());
             }
         }
     };
 
-    let old_state_owned = loop_runner.get_rotation_state(display)?;
+    let old_state_owned = loop_runner.get_rotation_state()?;
     let mut old_state = old_state_owned.as_str();
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
@@ -200,13 +200,13 @@ fn main() -> Result<(), String> {
             },
             Orientation {
                 vector: (-1.0, 0.0),
-                new_state: "90",
+                new_state: "270",
                 x_state: "right",
                 matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
             },
             Orientation {
                 vector: (1.0, 0.0),
-                new_state: "270",
+                new_state: "90",
                 x_state: "left",
                 matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
             },
@@ -257,9 +257,8 @@ fn main() -> Result<(), String> {
                 }
             }
 
-            loop_runner.tick_always();
             if current_orient.new_state != old_state {
-                loop_runner.tick(current_orient);
+                loop_runner.change_rotation_state(current_orient);
                 old_state = current_orient.new_state;
             }
 

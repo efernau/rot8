@@ -32,30 +32,40 @@ impl WaylandLoop {
         // TODO: bail out if output management protocol isn't available
         WaylandLoop { state, event_queue }
     }
-}
-impl AppLoop for WaylandLoop {
-    fn tick_always(&mut self) -> () {
+
+    fn read_socket(&mut self) {
         self.event_queue
             .roundtrip(&mut self.state)
             .expect("Failed to read display changes.");
     }
-    fn tick(&mut self, new_state: &Orientation) {
-        self.state.update_configuration(match new_state.new_state {
-            "normal" => Transform::Normal,
-            "90" => Transform::_270,
-            "180" => Transform::_180,
-            "270" => Transform::_90,
-            &_ => Transform::Normal,
-        });
 
+    fn write_socket(&self) {
         self.event_queue
             .flush()
             .expect("Failed to apply display changes.");
     }
+}
+impl AppLoop for WaylandLoop {
+    fn change_rotation_state(&mut self, new_state: &Orientation) {
+        self.read_socket();
 
-    fn get_rotation_state(&self, display: &str) -> Result<String, String> {
-        // TODO: implement
-        return Ok("normal".to_string());
+        self.state.update_configuration(match new_state.new_state {
+            "normal" => Transform::Normal,
+            "90" => Transform::_90,
+            "180" => Transform::_180,
+            "270" => Transform::_270,
+            &_ => Transform::Normal,
+        });
+
+        self.write_socket();
+    }
+
+    fn get_rotation_state(&mut self) -> Result<String, String> {
+        self.read_socket();
+        self.state
+            .current_transform
+            .clone()
+            .ok_or("Failed to get current display rotation".into())
     }
 }
 
@@ -64,6 +74,7 @@ struct AppData {
     target_head: Option<ZwlrOutputHeadV1>,
     output_manager: Option<ZwlrOutputManagerV1>,
     current_config_serial: Option<u32>,
+    current_transform: Option<String>,
     queue_handle: QueueHandle<AppData>,
 }
 
@@ -77,6 +88,7 @@ impl AppData {
             target_head: None,
             output_manager: None,
             current_config_serial: None,
+            current_transform: None,
         }
     }
 
@@ -109,7 +121,7 @@ impl AppData {
 
 impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         registry: &wl_registry::WlRegistry,
         event: wl_registry::Event,
         _: &(),
@@ -124,7 +136,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
         {
             println!("[{}] {} v{}", name, interface, version);
             if interface == "zwlr_output_manager_v1" {
-                _state.output_manager =
+                state.output_manager =
                     Some(registry.bind::<ZwlrOutputManagerV1, (), AppData>(name, version, qh, ()));
             }
         }
@@ -133,7 +145,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
 
 impl Dispatch<ZwlrOutputManagerV1, ()> for AppData {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         _: &ZwlrOutputManagerV1,
         event: zwlr_output_manager_v1::Event,
         _: &(),
@@ -142,7 +154,7 @@ impl Dispatch<ZwlrOutputManagerV1, ()> for AppData {
     ) {
         if let zwlr_output_manager_v1::Event::Done { serial } = event {
             println!("Current config: {}", serial);
-            _state.current_config_serial = Some(serial);
+            state.current_config_serial = Some(serial);
         }
     }
 
@@ -153,7 +165,7 @@ impl Dispatch<ZwlrOutputManagerV1, ()> for AppData {
 
 impl Dispatch<ZwlrOutputHeadV1, ()> for AppData {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         head: &ZwlrOutputHeadV1,
         event: zwlr_output_head_v1::Event,
         _: &(),
@@ -162,21 +174,21 @@ impl Dispatch<ZwlrOutputHeadV1, ()> for AppData {
     ) {
         match event {
             zwlr_output_head_v1::Event::Name { name } => {
-                if name == _state.target_display_name {
+                if name == state.target_display_name {
                     println!("Found target display: {}", name);
-                    _state.target_head = Some(head.clone());
+                    state.target_head = Some(head.clone());
                 }
             }
             zwlr_output_head_v1::Event::Transform { transform } => {
-                println!(
-                    "New transform: {}",
+                state.current_transform = Some(
                     match transform {
                         WEnum::Value(Transform::_90) => "90",
                         WEnum::Value(Transform::_180) => "180",
                         WEnum::Value(Transform::_270) => "270",
                         _ => "normal",
                     }
-                );
+                    .into(),
+                )
             }
             _ => {}
         }

@@ -5,11 +5,19 @@ use crate::Orientation;
 use super::AppLoop;
 
 pub struct XLoop {
-    pub touchscreens: Vec<String>,
+    touchscreens: Vec<String>,
+    target_display: String,
+}
+impl XLoop {
+    pub fn new(display: &str, touchscreens: Vec<String>) -> Self {
+        XLoop {
+            target_display: display.into(),
+            touchscreens,
+        }
+    }
 }
 impl AppLoop for XLoop {
-    fn tick_always(&mut self) -> () {}
-    fn tick(&mut self, new_state: &Orientation) {
+    fn change_rotation_state(&mut self, new_state: &Orientation) {
         Command::new("xrandr")
             .arg("-o")
             .arg(new_state.x_state)
@@ -32,7 +40,7 @@ impl AppLoop for XLoop {
         }
     }
 
-    fn get_rotation_state(&self, display: &str) -> Result<String, String> {
+    fn get_rotation_state(&mut self) -> Result<String, String> {
         let raw_rotation_state = String::from_utf8(
             Command::new("xrandr")
                 .output()
@@ -42,7 +50,7 @@ impl AppLoop for XLoop {
         .unwrap();
         let xrandr_output_pattern = regex::Regex::new(format!(
                 r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
-                regex::escape(display),
+                regex::escape(&self.target_display),
             ).as_str()).unwrap();
         for xrandr_output_line in raw_rotation_state.split('\n') {
             if !xrandr_output_pattern.is_match(xrandr_output_line) {
@@ -60,7 +68,7 @@ impl AppLoop for XLoop {
 
         Err(format!(
             "Unable to determine rotation state: display {} not found in xrandr output",
-            display
+            self.target_display
         ))
     }
 }

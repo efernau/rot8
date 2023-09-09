@@ -1,18 +1,11 @@
 use std::process::Command;
 
-use serde::Deserialize;
 use serde_json::Value;
 use wayland_client::Connection;
 
 use crate::Orientation;
 
 use super::{wlroots::WaylandLoop, AppLoop};
-
-#[derive(Deserialize)]
-struct SwayOutput {
-    name: String,
-    transform: String,
-}
 
 pub struct SwayLoop {
     wayland_loop: WaylandLoop,
@@ -53,11 +46,8 @@ impl SwayLoop {
     }
 }
 impl AppLoop for SwayLoop {
-    fn tick_always(&mut self) -> () {
-        self.wayland_loop.tick_always();
-    }
-    fn tick(&mut self, new_state: &Orientation) {
-        self.wayland_loop.tick(new_state);
+    fn change_rotation_state(&mut self, new_state: &Orientation) {
+        self.wayland_loop.change_rotation_state(new_state);
 
         if !self.manage_keyboard {
             return;
@@ -81,28 +71,7 @@ impl AppLoop for SwayLoop {
         }
     }
 
-    fn get_rotation_state(&self, display: &str) -> Result<String, String> {
-        let raw_rotation_state = String::from_utf8(
-            Command::new("swaymsg")
-                .arg("-t")
-                .arg("get_outputs")
-                .arg("--raw")
-                .output()
-                .expect("Swaymsg get outputs command failed to start")
-                .stdout,
-        )
-        .unwrap();
-        let deserialized: Vec<SwayOutput> = serde_json::from_str(&raw_rotation_state)
-            .expect("Unable to deserialize swaymsg JSON output");
-        for output in deserialized {
-            if output.name == display {
-                return Ok(output.transform);
-            }
-        }
-
-        Err(format!(
-            "Unable to determine rotation state: display {} not found in 'swaymsg -t get_outputs'",
-            display
-        ))
+    fn get_rotation_state(&mut self) -> Result<String, String> {
+        self.wayland_loop.get_rotation_state()
     }
 }
