@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use clap::{App, Arg};
 use glob::glob;
-use wayland_client;
+use wayland_client::{self, protocol::wl_output::Transform};
 
 mod backends;
 use backends::{sway::SwayBackend, wlroots::WaylandBackend, xorg::XorgBackend, DisplayManager};
@@ -19,7 +19,7 @@ const ROT8_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Orientation {
     vector: (f32, f32),
-    new_state: &'static str,
+    wayland_state: Transform,
     x_state: &'static str,
     matrix: [&'static str; 9],
 }
@@ -163,8 +163,7 @@ fn main() -> Result<(), String> {
         }
     };
 
-    let old_state_owned = backend.get_rotation_state()?;
-    let mut old_state = old_state_owned.as_str();
+    let mut old_state = backend.get_rotation_state()?;
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
         match entry {
@@ -188,25 +187,25 @@ fn main() -> Result<(), String> {
         let orientations = [
             Orientation {
                 vector: (0.0, -1.0),
-                new_state: "normal",
+                wayland_state: Transform::Normal,
                 x_state: "normal",
                 matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
             },
             Orientation {
                 vector: (0.0, 1.0),
-                new_state: "180",
+                wayland_state: Transform::_180,
                 x_state: "inverted",
                 matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
             },
             Orientation {
                 vector: (-1.0, 0.0),
-                new_state: "270",
+                wayland_state: Transform::_270,
                 x_state: "right",
                 matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
             },
             Orientation {
                 vector: (1.0, 0.0),
-                new_state: "90",
+                wayland_state: Transform::_90,
                 x_state: "left",
                 matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
             },
@@ -257,9 +256,9 @@ fn main() -> Result<(), String> {
                 }
             }
 
-            if current_orient.new_state != old_state {
+            if current_orient.wayland_state != old_state {
                 backend.change_rotation_state(current_orient);
-                old_state = current_orient.new_state;
+                old_state = current_orient.wayland_state;
             }
 
             if oneshot {

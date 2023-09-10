@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use wayland_client::protocol::wl_output::Transform;
+
 use crate::Orientation;
 
 use super::DisplayManager;
@@ -40,7 +42,7 @@ impl DisplayManager for XorgBackend {
         }
     }
 
-    fn get_rotation_state(&mut self) -> Result<String, String> {
+    fn get_rotation_state(&mut self) -> Result<Transform, String> {
         let raw_rotation_state = String::from_utf8(
             Command::new("xrandr")
                 .output()
@@ -60,9 +62,14 @@ impl DisplayManager for XorgBackend {
             let xrandr_output_captures =
                 xrandr_output_pattern.captures(xrandr_output_line).unwrap();
             if let Some(transform) = xrandr_output_captures.get(1) {
-                return Ok(transform.as_str().to_owned());
+                return Ok(match transform.as_str() {
+                    "inverted" => Transform::_180,
+                    "right" => Transform::_270,
+                    "left" => Transform::_90,
+                    _ => Transform::Normal,
+                });
             } else {
-                return Ok("normal".to_owned());
+                return Ok(Transform::Normal);
             }
         }
 

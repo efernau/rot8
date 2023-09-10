@@ -1,7 +1,7 @@
 use wayland_client::{
     event_created_child,
     protocol::{wl_output::Transform, wl_registry},
-    Connection, Dispatch, EventQueue, QueueHandle, WEnum,
+    Connection, Dispatch, EventQueue, QueueHandle,
 };
 use wayland_protocols_wlr::output_management::v1::client::{
     zwlr_output_configuration_head_v1::{self, ZwlrOutputConfigurationHeadV1},
@@ -48,19 +48,11 @@ impl WaylandBackend {
 impl DisplayManager for WaylandBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         self.read_socket();
-
-        self.state.update_configuration(match new_state.new_state {
-            "normal" => Transform::Normal,
-            "90" => Transform::_90,
-            "180" => Transform::_180,
-            "270" => Transform::_270,
-            &_ => Transform::Normal,
-        });
-
+        self.state.update_configuration(new_state.wayland_state);
         self.write_socket();
     }
 
-    fn get_rotation_state(&mut self) -> Result<String, String> {
+    fn get_rotation_state(&mut self) -> Result<Transform, String> {
         self.read_socket();
         self.state
             .current_transform
@@ -74,7 +66,7 @@ struct AppData {
     target_head: Option<ZwlrOutputHeadV1>,
     output_manager: Option<ZwlrOutputManagerV1>,
     current_config_serial: Option<u32>,
-    current_transform: Option<String>,
+    current_transform: Option<Transform>,
     queue_handle: QueueHandle<AppData>,
 }
 
@@ -180,15 +172,7 @@ impl Dispatch<ZwlrOutputHeadV1, ()> for AppData {
                 }
             }
             zwlr_output_head_v1::Event::Transform { transform } => {
-                state.current_transform = Some(
-                    match transform {
-                        WEnum::Value(Transform::_90) => "90",
-                        WEnum::Value(Transform::_180) => "180",
-                        WEnum::Value(Transform::_270) => "270",
-                        _ => "normal",
-                    }
-                    .into(),
-                )
+                state.current_transform = Some(transform.into_result().unwrap())
             }
             _ => {}
         }

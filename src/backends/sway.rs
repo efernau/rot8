@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use serde_json::Value;
-use wayland_client::Connection;
+use wayland_client::{protocol::wl_output::Transform, Connection};
 
 use crate::Orientation;
 
@@ -53,7 +53,7 @@ impl DisplayManager for SwayBackend {
             return;
         }
 
-        let keyboard_state = if new_state.new_state == "normal" {
+        let keyboard_state = if new_state.wayland_state == Transform::Normal {
             "enabled"
         } else {
             "disabled"
@@ -71,7 +71,7 @@ impl DisplayManager for SwayBackend {
         }
     }
 
-    fn get_rotation_state(&mut self) -> Result<String, String> {
+    fn get_rotation_state(&mut self) -> Result<Transform, String> {
         self.wayland_backend.get_rotation_state()
     }
 }
