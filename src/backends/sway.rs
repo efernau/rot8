@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use serde_json::Value;
-use wayland_client::{protocol::wl_output::Transform, Connection};
+use wayland_client::protocol::wl_output::Transform;
 
 use crate::Orientation;
 
@@ -13,9 +13,9 @@ pub struct SwayBackend {
 }
 
 impl SwayBackend {
-    pub fn new(conn: Connection, target_display: &str, manage_keyboard: bool) -> SwayBackend {
+    pub fn new(wayland_backend: WaylandBackend, manage_keyboard: bool) -> Self {
         SwayBackend {
-            wayland_backend: WaylandBackend::new(conn, target_display),
+            wayland_backend,
             manage_keyboard,
         }
     }
@@ -45,6 +45,7 @@ impl SwayBackend {
         keyboards
     }
 }
+
 impl DisplayManager for SwayBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         self.wayland_backend.change_rotation_state(new_state);

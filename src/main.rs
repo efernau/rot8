@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use clap::{App, Arg};
 use glob::glob;
-use wayland_client::{self, protocol::wl_output::Transform};
+use wayland_client::protocol::wl_output::Transform;
 
 mod backends;
 use backends::{sway::SwayBackend, wlroots::WaylandBackend, xorg::XorgBackend, DisplayManager};
@@ -136,34 +136,25 @@ fn main() -> Result<(), String> {
     let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
     let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
 
-    let mut backend: Box<dyn DisplayManager> = match wayland_client::Connection::connect_to_env() {
-        Ok(conn) => {
-            // We are wayland
-            if !String::from_utf8(Command::new("pidof").arg("sway").output().unwrap().stdout)
-                .unwrap()
-                .is_empty()
-            {
-                Box::new(SwayBackend::new(conn, display, disable_keyboard))
+    let mut backend: Box<dyn DisplayManager> = match WaylandBackend::new(display) {
+        Ok(wayland_backend) => {
+            if process_exists("sway") {
+                Box::new(SwayBackend::new(wayland_backend, disable_keyboard))
             } else {
-                Box::new(WaylandBackend::new(conn, display))
+                Box::new(wayland_backend)
             }
         }
-        Err(_) => {
-            if !String::from_utf8(Command::new("pidof").arg("Xorg").output().unwrap().stdout)
-                .unwrap()
-                .is_empty()
-                || !String::from_utf8(Command::new("pidof").arg("X").output().unwrap().stdout)
-                    .unwrap()
-                    .is_empty()
-            {
+        Err(e) => {
+            if process_exists("Xorg") || process_exists("X") {
                 Box::new(XorgBackend::new(display, touchscreens))
             } else {
-                return Err("Unable to find Sway or Xorg processes".to_owned());
+                return Err(format!(
+                    "Unable to find supported Xorg process or wayland compositor: {}.",
+                    e
+                ));
             }
         }
     };
-
-    let mut old_state = backend.get_rotation_state()?;
 
     for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
         match entry {
@@ -211,6 +202,7 @@ fn main() -> Result<(), String> {
             },
         ];
 
+        let mut old_state = backend.get_rotation_state()?;
         let mut current_orient: &Orientation = &orientations[0];
 
         loop {
@@ -268,4 +260,16 @@ fn main() -> Result<(), String> {
             thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
         }
     }
+}
+
+fn process_exists(proc_name: &str) -> bool {
+    !String::from_utf8(
+        Command::new("pidof")
+            .arg(proc_name)
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap()
+    .is_empty()
 }

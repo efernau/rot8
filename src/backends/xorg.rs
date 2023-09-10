@@ -2,14 +2,14 @@ use std::process::Command;
 
 use wayland_client::protocol::wl_output::Transform;
 
-use crate::Orientation;
-
 use super::DisplayManager;
+use crate::Orientation;
 
 pub struct XorgBackend {
     touchscreens: Vec<String>,
     target_display: String,
 }
+
 impl XorgBackend {
     pub fn new(display: &str, touchscreens: Vec<String>) -> Self {
         XorgBackend {
@@ -18,6 +18,7 @@ impl XorgBackend {
         }
     }
 }
+
 impl DisplayManager for XorgBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         Command::new("xrandr")

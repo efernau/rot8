@@ -21,7 +21,9 @@ pub struct WaylandBackend {
 }
 
 impl WaylandBackend {
-    pub fn new(conn: Connection, target_display: &str) -> WaylandBackend {
+    pub fn new(target_display: &str) -> Result<WaylandBackend, String> {
+        let conn = wayland_client::Connection::connect_to_env()
+            .map_err(|_| "Could not connect to wayland socket.")?;
         let wl_display = conn.display();
         let mut event_queue = conn.new_event_queue();
         let _registry = wl_display.get_registry(&event_queue.handle(), ());
@@ -29,22 +31,31 @@ impl WaylandBackend {
         event_queue.roundtrip(&mut state).unwrap();
         // Roundtrip a second time to sync the outputs
         event_queue.roundtrip(&mut state).unwrap();
-        // TODO: bail out if output management protocol isn't available
-        WaylandBackend { state, event_queue }
+
+        state
+            .output_manager
+            .as_ref()
+            .ok_or("Compositor does not support wlr_output_management_v1.")?;
+
+        Ok(WaylandBackend { state, event_queue })
     }
 
+    /// Receive (and send) all buffered messages across the wayland socket.
     fn read_socket(&mut self) {
         self.event_queue
             .roundtrip(&mut self.state)
             .expect("Failed to read display changes.");
     }
 
+    /// Send all buffered messages across the wayland socket.
+    /// Slightly cheaper than `read_socket`.
     fn write_socket(&self) {
         self.event_queue
             .flush()
             .expect("Failed to apply display changes.");
     }
 }
+
 impl DisplayManager for WaylandBackend {
     fn change_rotation_state(&mut self, new_state: &Orientation) {
         self.read_socket();
@@ -56,7 +67,6 @@ impl DisplayManager for WaylandBackend {
         self.read_socket();
         self.state
             .current_transform
-            .clone()
             .ok_or("Failed to get current display rotation".into())
     }
 }
@@ -70,10 +80,10 @@ struct AppData {
     queue_handle: QueueHandle<AppData>,
 }
 
-// Public interface
+/// Public interface
 
 impl AppData {
-    pub fn new(event_queue: &mut EventQueue<AppData>, target_display_name: String) -> AppData {
+    pub fn new(event_queue: &mut EventQueue<AppData>, target_display_name: String) -> Self {
         AppData {
             target_display_name,
             queue_handle: event_queue.handle(),
@@ -85,31 +95,20 @@ impl AppData {
     }
 
     pub fn update_configuration(&mut self, new_transform: Transform) {
-        let output_manager = self
-            .output_manager
-            .as_ref()
-            .expect("Failed to create wayland output manager.");
-        // The serial should be replaced after applying the new config, so we can
-        // avoid cloning here.
-        let current_serial = match self.current_config_serial {
-            Some(value) => value.clone(),
-            None => return,
-        };
-        self.current_config_serial = Some(current_serial + 1u32);
-
-        let target_head = self
-            .target_head
-            .as_ref()
-            .expect("Failed to get target head.");
-        let configuration =
-            output_manager.create_configuration(current_serial, &self.queue_handle, ());
-        let head_config = configuration.enable_head(&target_head, &self.queue_handle, ());
-        head_config.set_transform(new_transform);
-        configuration.apply();
+        if let (Some(output_manager), Some(serial), Some(head)) = (
+            &self.output_manager,
+            self.current_config_serial,
+            &self.target_head,
+        ) {
+            let configuration = output_manager.create_configuration(serial, &self.queue_handle, ());
+            let head_config = configuration.enable_head(&head, &self.queue_handle, ());
+            head_config.set_transform(new_transform);
+            configuration.apply();
+        }
     }
 }
 
-// Event handlers
+/// Event handlers
 
 impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
     fn event(
