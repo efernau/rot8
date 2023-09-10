@@ -126,7 +126,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for AppData {
             version,
         } = event
         {
-            println!("[{}] {} v{}", name, interface, version);
+            // println!("[{}] {} v{}", name, interface, version);
             if interface == "zwlr_output_manager_v1" {
                 state.output_manager =
                     Some(registry.bind::<ZwlrOutputManagerV1, (), AppData>(name, version, qh, ()));
@@ -145,7 +145,7 @@ impl Dispatch<ZwlrOutputManagerV1, ()> for AppData {
         _: &QueueHandle<AppData>,
     ) {
         if let zwlr_output_manager_v1::Event::Done { serial } = event {
-            println!("Current config: {}", serial);
+            // println!("Current config: {}", serial);
             state.current_config_serial = Some(serial);
         }
     }
@@ -167,7 +167,7 @@ impl Dispatch<ZwlrOutputHeadV1, ()> for AppData {
         match event {
             zwlr_output_head_v1::Event::Name { name } => {
                 if name == state.target_display_name {
-                    println!("Found target display: {}", name);
+                    // println!("Found target display: {}", name);
                     state.target_head = Some(head.clone());
                 }
             }
@@ -207,15 +207,15 @@ impl Dispatch<ZwlrOutputConfigurationV1, ()> for AppData {
     ) {
         match event {
             zwlr_output_configuration_v1::Event::Succeeded => {
-                println!("Config applied successfully.");
+                // println!("Config applied successfully.");
                 config.destroy();
             }
             zwlr_output_configuration_v1::Event::Failed => {
-                println!("Failed to apply new config.");
+                // println!("Failed to apply new config.");
                 config.destroy();
             }
             zwlr_output_configuration_v1::Event::Cancelled => {
-                println!("Config application cancelled.");
+                // println!("Config application cancelled.");
                 config.destroy();
             }
             _ => {}
