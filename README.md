@@ -2,10 +2,13 @@
 
 ## automatic display rotation using built-in accelerometer
 
-Automatic rotate modern Linux desktop screen and input devices. Handy for
-convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or Linux phone like Pinephone.
+Automatically rotate modern Linux desktop screen and input devices. Handy for
+convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex
+or Linux phone like Pinephone.
 
-Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
+Compatible with [X11](https://www.x.org/wiki/Releases/7.7/) and Wayland
+compositors which support the `wlr_output_management_v1` protocol (Like
+[sway](http://swaywm.org/) and [hyprland](https://hyprland.org/)).
 
 ### installation
 
