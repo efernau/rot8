@@ -28,9 +28,15 @@ impl WaylandBackend {
         let mut event_queue = conn.new_event_queue();
         let _registry = wl_display.get_registry(&event_queue.handle(), ());
         let mut state = AppData::new(&mut event_queue, target_display.to_string());
-        event_queue.roundtrip(&mut state).unwrap();
-        // Roundtrip a second time to sync the outputs
-        event_queue.roundtrip(&mut state).unwrap();
+        // Roundtrip twice to sync the outputs
+        for _ in 0..2 {
+            event_queue.roundtrip(&mut state).map_err(|e| {
+                format!(
+                    "Failed to communicate with the wayland socket: {}",
+                    e.to_string()
+                )
+            })?;
+        }
 
         state
             .output_manager
