@@ -2,7 +2,7 @@
 
 ## automatic display rotation using built-in accelerometer
 
-Automatic rotate modern Linux desktop screen and input devices. Handy for
+Automatically rotate modern Linux desktop screen and input devices. Handy for
 convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or Linux phone like Pinephone.
 
 Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
@@ -16,6 +16,8 @@ Available in:
 Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/)
 
 Void Package: [rot8](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
+
+Nixpkgs: [rot8](https://search.nixos.org/packages?channel=unstable&show=rot8&from=0&size=50&sort=relevance&type=packages&query=rot8)
 
 #### manually build from source
 
