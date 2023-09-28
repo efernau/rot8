@@ -1,4 +1,5 @@
 # rot8
+[![Rust](https://github.com/efernau/rot8/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/efernau/rot8/actions/workflows/rust.yml)
 
 ## automatic display rotation using built-in accelerometer
 
