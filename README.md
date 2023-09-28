@@ -78,6 +78,8 @@ There are the following args (defaults):
 --invert-y              // Invert readings from the HW y axis
 --invert-z              // Invert readings from the HW z axis
 --oneshot               // Updates the screen rotation just once instead of continuously
+--beforehooks           // Execute a custom script before rotation
+--hooks                 // Execute a custom script after the rotation has finished
 --version               // Returns the rot8 version
 
 ```
