@@ -1,5 +1,7 @@
 # rot8
 
+[![Rust](https://github.com/efernau/rot8/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/efernau/rot8/actions/workflows/rust.yml)
+
 ## automatic display rotation using built-in accelerometer
 
 Automatically rotate modern Linux desktop screen and input devices. Handy for
@@ -19,6 +21,8 @@ Available in:
 Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/)
 
 Void Package: [rot8](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
+
+Nixpkgs: [rot8](https://search.nixos.org/packages?channel=unstable&show=rot8&from=0&size=50&sort=relevance&type=packages&query=rot8)
 
 #### manually build from source
 
@@ -79,6 +83,8 @@ There are the following args (defaults):
 --invert-y              // Invert readings from the HW y axis
 --invert-z              // Invert readings from the HW z axis
 --oneshot               // Updates the screen rotation just once instead of continuously
+--beforehooks           // Execute a custom script before rotation
+--hooks                 // Execute a custom script after the rotation has finished
 --version               // Returns the rot8 version
 
 ```

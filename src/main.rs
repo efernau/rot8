@@ -103,7 +103,23 @@ fn main() -> Result<(), String> {
             .short('V')
             .value_name("VERSION")
             .help("Displays rot8 version")
-            .takes_value(false)
+            .takes_value(false),
+        Arg::with_name("beforehooks")
+            .long("beforehooks")
+            .short('b')
+            .value_name("BEFOREHOOKS")
+            .help("Run hook(s) before screen rotation. Passes $ORIENTATION and $PREV_ORIENTATION to hooks. Comma-seperated.")
+            .takes_value(true)
+            .use_value_delimiter(true)
+            .require_value_delimiter(true),
+        Arg::with_name("hooks")
+            .long("hooks")
+            .short('h')
+            .value_name("HOOKS")
+            .help("Run hook(s) after screen rotation. Passes $ORIENTATION and $PREV_ORIENTATION to hooks. Comma-seperated.")
+            .takes_value(true)
+            .use_value_delimiter(true)
+            .require_value_delimiter(true)
     ];
 
     let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
@@ -118,10 +134,11 @@ fn main() -> Result<(), String> {
     let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
-    let touchscreens: Vec<String> = matches
-        .values_of("touchscreen")
-        .unwrap()
-        .map(|s| s.to_string())
+    let touchscreens: Vec<String> = matches.get_many("touchscreen").unwrap().cloned().collect();
+    let hooks: Vec<&str> = matches.values_of("hooks").unwrap_or_default().collect();
+    let beforehooks: Vec<&str> = matches
+        .values_of("beforehooks")
+        .unwrap_or_default()
         .collect();
     let disable_keyboard = matches.is_present("keyboard");
     let threshold = matches.value_of("threshold").unwrap_or("default.conf");
@@ -249,7 +266,34 @@ fn main() -> Result<(), String> {
             }
 
             if current_orient.wayland_state != old_state {
+                let old_env = transform_to_env(&old_state);
+                let new_env = transform_to_env(&current_orient.wayland_state);
+                for bhook in beforehooks.iter() {
+                    Command::new("bash")
+                        .arg("-c")
+                        .arg(bhook)
+                        .env("ORIENTATION", new_env)
+                        .env("PREV_ORIENTATION", old_env)
+                        .spawn()
+                        .expect("A hook failed to start.")
+                        .wait()
+                        .expect("Waiting for a hook failed.");
+                }
+
                 backend.change_rotation_state(current_orient);
+
+                for hook in hooks.iter() {
+                    Command::new("bash")
+                        .arg("-c")
+                        .arg(hook)
+                        .env("ORIENTATION", new_env)
+                        .env("PREV_ORIENTATION", old_env)
+                        .spawn()
+                        .expect("A hook failed to start.")
+                        .wait()
+                        .expect("Waiting for a hook failed.");
+                }
+
                 old_state = current_orient.wayland_state;
             }
 
@@ -272,4 +316,14 @@ fn process_exists(proc_name: &str) -> bool {
     )
     .unwrap()
     .is_empty()
+}
+
+fn transform_to_env(transform: &Transform) -> &str {
+    match transform {
+        &Transform::Normal => "normal",
+        &Transform::_90 => "270",
+        &Transform::_180 => "inverted",
+        &Transform::_270 => "90",
+        &_ => "normal",
+    }
 }
