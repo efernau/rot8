@@ -30,12 +30,9 @@ impl WaylandBackend {
         let mut state = AppData::new(&mut event_queue, target_display.to_string());
         // Roundtrip twice to sync the outputs
         for _ in 0..2 {
-            event_queue.roundtrip(&mut state).map_err(|e| {
-                format!(
-                    "Failed to communicate with the wayland socket: {}",
-                    e.to_string()
-                )
-            })?;
+            event_queue
+                .roundtrip(&mut state)
+                .map_err(|e| format!("Failed to communicate with the wayland socket: {}", e))?;
         }
 
         state
@@ -107,7 +104,7 @@ impl AppData {
             &self.target_head,
         ) {
             let configuration = output_manager.create_configuration(serial, &self.queue_handle, ());
-            let head_config = configuration.enable_head(&head, &self.queue_handle, ());
+            let head_config = configuration.enable_head(head, &self.queue_handle, ());
             head_config.set_transform(new_transform);
             configuration.apply();
         }

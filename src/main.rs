@@ -320,10 +320,10 @@ fn process_exists(proc_name: &str) -> bool {
 
 fn transform_to_env(transform: &Transform) -> &str {
     match transform {
-        &Transform::Normal => "normal",
-        &Transform::_90 => "270",
-        &Transform::_180 => "inverted",
-        &Transform::_270 => "90",
-        &_ => "normal",
+        Transform::Normal => "normal",
+        Transform::_90 => "270",
+        Transform::_180 => "inverted",
+        Transform::_270 => "90",
+        _ => "normal",
     }
 }
