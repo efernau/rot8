@@ -43,7 +43,7 @@ $ cargo install rot8
 
 ### usage
 
-For Sway map your input to the output device:
+Map your inputs to the output device as necessary. e.g. for sway:
 
 ```
 
@@ -51,7 +51,7 @@ $ swaymsg input <INPUTDEVICE> map_to_output <OUTPUTDEVICE>
 
 ```
 
-Call rot8 from sway configuration file ~/.config/sway/config:
+Call rot8 from your compositor configuration. e.g. for sway:
 
 ```
 
