@@ -1,12 +1,16 @@
 # rot8
+
 [![Rust](https://github.com/efernau/rot8/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/efernau/rot8/actions/workflows/rust.yml)
 
 ## automatic display rotation using built-in accelerometer
 
 Automatically rotate modern Linux desktop screen and input devices. Handy for
-convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex or Linux phone like Pinephone.
+convertible touchscreen notebooks like HP Spectre x360, Lenovo IdeaPad Flex
+or Linux phone like Pinephone.
 
-Compatible with [sway](http://swaywm.org/) and [X11](https://www.x.org/wiki/Releases/7.7/).
+Compatible with [X11](https://www.x.org/wiki/Releases/7.7/) and Wayland
+compositors which support the `wlr_output_management_v1` protocol (Like
+[sway](http://swaywm.org/) and [hyprland](https://hyprland.org/)).
 
 ### installation
 
@@ -39,7 +43,7 @@ $ cargo install rot8
 
 ### usage
 
-For Sway map your input to the output device:
+Map your inputs to the output device as necessary. e.g. for sway:
 
 ```
 
@@ -47,7 +51,7 @@ $ swaymsg input <INPUTDEVICE> map_to_output <OUTPUTDEVICE>
 
 ```
 
-Call rot8 from sway configuration file ~/.config/sway/config:
+Call rot8 from your compositor configuration. e.g. for sway:
 
 ```
 
