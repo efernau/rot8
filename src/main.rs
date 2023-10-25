@@ -152,8 +152,12 @@ fn main() -> Result<(), String> {
     let mut normalization_factor: Option<f32> = None;
     if let Some(v) = matches.value_of("normalization-factor") {
         match v.parse::<f32>() {
-            Ok(p) => { normalization_factor = Some(p) }
-            Err(_) => { return Err("The argument 'normalization-factor' is no valid float literal".to_string()); }
+            Ok(p) => normalization_factor = Some(p),
+            Err(_) => {
+                return Err(
+                    "The argument 'normalization-factor' is no valid float literal".to_string(),
+                );
+            }
         }
     }
 
@@ -235,9 +239,9 @@ fn main() -> Result<(), String> {
             let z_clean = z_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
 
             // Normalize vectors
-            let norm_factor = normalization_factor.unwrap_or_else(||
+            let norm_factor = normalization_factor.unwrap_or_else(|| {
                 f32::sqrt(x_clean * x_clean + y_clean * y_clean + z_clean * z_clean)
-            );
+            });
 
             let mut mut_x: f32 = x_clean / norm_factor;
             let mut mut_y: f32 = y_clean / norm_factor;
