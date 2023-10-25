@@ -87,11 +87,10 @@ fn main() -> Result<(), String> {
             .possible_values(["xy", "yx", "zy", "yz", "xz", "zx"])
             .takes_value(true),
         Arg::with_name("normalization-factor")
-            .default_value("1e6")
             .long("normalization-factor")
             .short('n')
             .value_name("NORMALIZATION_FACTOR")
-            .help("Set factor for sensor value normalization")
+            .help("Set factor for sensor value normalization manually. By default this factor is calculated dynamically using the sensor's data.")
             .takes_value(true),
         Arg::with_name("keyboard")
             .long("disable-keyboard")
@@ -150,8 +149,13 @@ fn main() -> Result<(), String> {
     let x_source = xy.next().unwrap();
     let y_source = xy.next().unwrap();
 
-    let normalization_factor = matches.value_of("normalization-factor").unwrap_or("1e6");
-    let normalization_factor = normalization_factor.parse::<f32>().unwrap_or(1e6);
+    let mut normalization_factor: Option<f32> = None;
+    if let Some(v) = matches.value_of("normalization-factor") {
+        match v.parse::<f32>() {
+            Ok(p) => { normalization_factor = Some(p) }
+            Err(_) => { return Err("The argument 'normalization-factor' is no valid float literal".to_string()); }
+        }
+    }
 
     let mut backend: Box<dyn DisplayManager> = match WaylandBackend::new(display) {
         Ok(wayland_backend) => {
@@ -226,14 +230,18 @@ fn main() -> Result<(), String> {
             let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
             let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
             let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
-            let x_clean = x_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
-            let y_clean = y_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
-            let z_clean = z_raw.trim_end_matches('\n').parse::<i32>().unwrap_or(0);
+            let x_clean = x_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
+            let y_clean = y_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
+            let z_clean = z_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
 
             // Normalize vectors
-            let mut mut_x: f32 = (x_clean as f32) / normalization_factor;
-            let mut mut_y: f32 = (y_clean as f32) / normalization_factor;
-            let mut mut_z: f32 = (z_clean as f32) / normalization_factor;
+            let norm_factor = normalization_factor.unwrap_or_else(||
+                f32::sqrt(x_clean * x_clean + y_clean * y_clean + z_clean * z_clean)
+            );
+
+            let mut mut_x: f32 = x_clean / norm_factor;
+            let mut mut_y: f32 = y_clean / norm_factor;
+            let mut mut_z: f32 = z_clean / norm_factor;
 
             // Apply inversions
             if flip_x {
