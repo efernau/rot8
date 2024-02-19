@@ -9,6 +9,7 @@ pub trait DisplayManager {
     fn get_rotation_state(&mut self) -> Result<Transform, String>;
 }
 
+pub mod hyprland;
 pub mod sway;
 pub mod wlroots;
 pub mod xorg;

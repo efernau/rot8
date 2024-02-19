@@ -13,7 +13,7 @@ use glob::glob;
 use wayland_client::protocol::wl_output::Transform;
 
 mod backends;
-use backends::{sway::SwayBackend, wlroots::WaylandBackend, xorg::XorgBackend, DisplayManager};
+use backends::{hyprland::HyprlandBackend, sway::SwayBackend, wlroots::WaylandBackend, xorg::XorgBackend, DisplayManager};
 
 const ROT8_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -163,7 +163,9 @@ fn main() -> Result<(), String> {
 
     let mut backend: Box<dyn DisplayManager> = match WaylandBackend::new(display) {
         Ok(wayland_backend) => {
-            if process_exists("sway") {
+            if process_exists("Hyprland") {
+                Box::new(HyprlandBackend::new(wayland_backend))
+            } else if process_exists("sway") {
                 Box::new(SwayBackend::new(wayland_backend, disable_keyboard))
             } else {
                 Box::new(wayland_backend)
