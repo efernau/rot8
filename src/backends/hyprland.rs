@@ -49,6 +49,15 @@ impl DisplayManager for HyprlandBackend {
             .expect("hyprctl touchdevice transform command failed to start")
             .wait()
             .expect("hyprctl touchdevice transform command wait failed");
+        Command::new("hyprctl")
+            .arg("keyword")
+            .arg("input:tablet:transform")
+            .arg(transform_idx.to_string())
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("hyprctl tablet transform command failed to start")
+            .wait()
+            .expect("hyprctl tablet transform command wait failed");
     }
 
     fn get_rotation_state(&mut self) -> Result<Transform, String> {
