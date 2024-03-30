@@ -16,13 +16,15 @@ compositors which support the `wlr_output_management_v1` protocol (Like
 
 #### packages
 
-Available in:
-
 Arch User Repository: [rot8-git](https://aur.archlinux.org/packages/rot8-git/)
+
+GNU Guix Package: [rot8](https://packages.guix.gnu.org/packages/rot8/)
+
+Nixpkgs: [rot8](https://search.nixos.org/packages?show=rot8&type=packages&query=rot8)
 
 Void Package: [rot8](https://github.com/void-linux/void-packages/tree/master/srcpkgs/rot8)
 
-Nixpkgs: [rot8](https://search.nixos.org/packages?channel=unstable&show=rot8&from=0&size=50&sort=relevance&type=packages&query=rot8)
+
 
 #### manually build from source
 
