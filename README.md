@@ -84,6 +84,7 @@ There are the following args (defaults):
 --invert-x              // Invert readings from the HW x axis
 --invert-y              // Invert readings from the HW y axis
 --invert-z              // Invert readings from the HW z axis
+--invert-xy             // Map HW axes to internal x and y respectively (xy, yx, zy, yz, xz, zx)
 --oneshot               // Updates the screen rotation just once instead of continuously
 --beforehooks           // Execute a custom script before rotation
 --hooks                 // Execute a custom script after the rotation has finished
