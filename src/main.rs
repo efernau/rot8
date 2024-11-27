@@ -42,6 +42,13 @@ fn main() -> Result<(), String> {
             .value_name("SLEEP")
             .help("Set sleep millis")
             .takes_value(true),
+        Arg::with_name("iio-device")
+            .default_value("*")
+            .long("iio device number")
+            .short('D')
+            .value_name("DEVICENUM")
+            .help("Change the iio device")
+            .takes_value(true),
         Arg::with_name("display")
             .default_value("eDP-1")
             .long("display")
@@ -119,6 +126,7 @@ fn main() -> Result<(), String> {
             .takes_value(true)
             .use_value_delimiter(true)
             .require_value_delimiter(true)
+
     ];
 
     let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
@@ -132,6 +140,7 @@ fn main() -> Result<(), String> {
 
     let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
+    let devicenum = matches.value_of("iio-device").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
     let touchscreens: Vec<String> = matches.get_many("touchscreen").unwrap().cloned().collect();
     let hooks: Vec<&str> = matches.values_of("hooks").unwrap_or_default().collect();
@@ -181,7 +190,7 @@ fn main() -> Result<(), String> {
         }
     };
 
-    for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
+    for entry in glob(&("/sys/bus/iio/devices/iio:device".to_owned()+devicenum+"/in_accel_*_raw")).unwrap() {
         match entry {
             Ok(path) => {
                 if path.to_str().unwrap().contains("x_raw") {
