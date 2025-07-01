@@ -52,7 +52,7 @@ impl DisplayManager for XorgBackend {
         )
         .unwrap();
         let xrandr_output_pattern = regex::Regex::new(format!(
-                r"^{} connected .+? .+? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
+                r"^{} connected .+? .*? (normal |inverted |left |right )?\(normal left inverted right x axis y axis\) .+$",
                 regex::escape(&self.target_display),
             ).as_str()).unwrap();
         for xrandr_output_line in raw_rotation_state.split('\n') {
