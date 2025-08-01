@@ -42,6 +42,12 @@ fn main() -> Result<(), String> {
             .value_name("SLEEP")
             .help("Set sleep millis")
             .takes_value(true),
+        Arg::with_name("device")
+            .default_value("/sys/bus/iio/devices/iio:device*")
+            .long("device")
+            .value_name("DEVICE")
+            .help("Set accelerometer device")
+            .takes_value(true),
         Arg::with_name("display")
             .default_value("eDP-1")
             .long("display")
@@ -133,6 +139,7 @@ fn main() -> Result<(), String> {
     let oneshot = matches.is_present("oneshot");
     let sleep = matches.value_of("sleep").unwrap_or("default.conf");
     let display = matches.value_of("display").unwrap_or("default.conf");
+    let device = matches.value_of("device").unwrap();
     let touchscreens: Vec<String> = matches.get_many("touchscreen").unwrap().cloned().collect();
     let hooks: Vec<&str> = matches.values_of("hooks").unwrap_or_default().collect();
     let beforehooks: Vec<&str> = matches
@@ -181,7 +188,7 @@ fn main() -> Result<(), String> {
         }
     };
 
-    for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
+    for entry in glob(&(device.to_owned() + "/in_accel_*_raw")).unwrap() {
         match entry {
             Ok(path) => {
                 if path.to_str().unwrap().contains("x_raw") {
