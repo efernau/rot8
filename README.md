@@ -77,6 +77,7 @@ There are the following args (defaults):
 
 --sleep                 // Set millis to sleep between rotation checks (500)
 --display               // Set Display Device (eDP-1)
+--device                // Set accelerometer device (/sys/bus/iio/devices/iio:device*)
 --touchscreen           // Set Touchscreen Device X11, allows multiple devices (ELAN0732:00 04F3:22E1)
 --keyboard              // Set keyboard to deactivate upon rotation, for Sway only
 --threshold             // Set a rotation threshold between 0 and 1, higher is more sensitive (0.5)
