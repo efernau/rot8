@@ -1,15 +1,12 @@
 extern crate clap;
-extern crate glob;
 extern crate regex;
 
 use std::fs;
-use std::path::Path;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
 use clap::{App, Arg};
-use glob::glob;
 use wayland_client::protocol::wl_output::Transform;
 
 mod backends;
@@ -25,10 +22,6 @@ pub struct Orientation {
 }
 
 fn main() -> Result<(), String> {
-    let mut path_x: String = "".to_string();
-    let mut path_y: String = "".to_string();
-    let mut path_z: String = "".to_string();
-
     let args = vec![
         Arg::with_name("oneshot")
             .long("oneshot")
@@ -118,7 +111,13 @@ fn main() -> Result<(), String> {
             .help("Run hook(s) after screen rotation. Passes $ORIENTATION and $PREV_ORIENTATION to hooks. Comma-seperated.")
             .takes_value(true)
             .use_value_delimiter(true)
-            .require_value_delimiter(true)
+            .require_value_delimiter(true),
+        Arg::with_name("accelerometer")
+            .long("accelerometer")
+            .short('a')
+            .value_name("ACCELEROMETER")
+            .help("Set accelerometer device path")
+            .takes_value(true)
     ];
 
     let cmd_lines = App::new("rot8").version(ROT8_VERSION).args(&args);
@@ -141,6 +140,36 @@ fn main() -> Result<(), String> {
         .collect();
     let disable_keyboard = matches.is_present("keyboard");
     let threshold = matches.value_of("threshold").unwrap_or("default.conf");
+    let accelerometer = 'acc: {
+        if let Some(p) = matches.value_of("accelerometer") {
+            p.into()
+        } else {
+            let entries = fs::read_dir("/sys/bus/iio/devices")
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+
+            for e in entries {
+                if !e
+                    .file_name()
+                    .as_os_str()
+                    .as_encoded_bytes()
+                    .starts_with(b"iio:device")
+                {
+                    continue;
+                }
+
+                if ["in_accel_x_raw", "in_accel_y_raw", "in_accel_z_raw"]
+                    .iter()
+                    .all(|c| e.path().join(c).exists())
+                {
+                    break 'acc e.path();
+                }
+            }
+
+            return Err("Unknown Accelerometer Device".to_string());
+        }
+    };
 
     let flip_x = matches.is_present("invert-x");
     let flip_y = matches.is_present("invert-y");
@@ -181,140 +210,124 @@ fn main() -> Result<(), String> {
         }
     };
 
-    for entry in glob("/sys/bus/iio/devices/iio:device*/in_accel_*_raw").unwrap() {
-        match entry {
-            Ok(path) => {
-                if path.to_str().unwrap().contains("x_raw") {
-                    path_x = path.to_str().unwrap().to_owned();
-                } else if path.to_str().unwrap().contains("y_raw") {
-                    path_y = path.to_str().unwrap().to_owned();
-                } else if path.to_str().unwrap().contains("z_raw") {
-                    path_z = path.to_str().unwrap().to_owned();
-                }
-            }
-            Err(e) => println!("{:?}", e),
+    let path_x = accelerometer.join("in_accel_x_raw");
+    let path_y = accelerometer.join("in_accel_y_raw");
+    let path_z = accelerometer.join("in_accel_z_raw");
+
+    let orientations = [
+        Orientation {
+            vector: (0.0, -1.0),
+            wayland_state: Transform::Normal,
+            x_state: "normal",
+            matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
+        },
+        Orientation {
+            vector: (0.0, 1.0),
+            wayland_state: Transform::_180,
+            x_state: "inverted",
+            matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
+        },
+        Orientation {
+            vector: (-1.0, 0.0),
+            wayland_state: Transform::_270,
+            x_state: "right",
+            matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
+        },
+        Orientation {
+            vector: (1.0, 0.0),
+            wayland_state: Transform::_90,
+            x_state: "left",
+            matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
+        },
+    ];
+
+    let mut old_state = backend.get_rotation_state()?;
+    let mut current_orient: &Orientation = &orientations[0];
+
+    loop {
+        let x_raw = fs::read_to_string(&path_x).unwrap();
+        let y_raw = fs::read_to_string(&path_y).unwrap();
+        let z_raw = fs::read_to_string(&path_z).unwrap();
+        let x_clean = x_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
+        let y_clean = y_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
+        let z_clean = z_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
+
+        // Normalize vectors
+        let norm_factor = normalization_factor.unwrap_or_else(|| {
+            f32::sqrt(x_clean * x_clean + y_clean * y_clean + z_clean * z_clean)
+        });
+
+        let mut mut_x: f32 = x_clean / norm_factor;
+        let mut mut_y: f32 = y_clean / norm_factor;
+        let mut mut_z: f32 = z_clean / norm_factor;
+
+        // Apply inversions
+        if flip_x {
+            mut_x = -mut_x;
         }
-    }
-
-    if !Path::new(&path_x).exists() && !Path::new(&path_y).exists() && !Path::new(&path_z).exists()
-    {
-        Err("Unknown Accelerometer Device".to_string())
-    } else {
-        let orientations = [
-            Orientation {
-                vector: (0.0, -1.0),
-                wayland_state: Transform::Normal,
-                x_state: "normal",
-                matrix: ["1", "0", "0", "0", "1", "0", "0", "0", "1"],
-            },
-            Orientation {
-                vector: (0.0, 1.0),
-                wayland_state: Transform::_180,
-                x_state: "inverted",
-                matrix: ["-1", "0", "1", "0", "-1", "1", "0", "0", "1"],
-            },
-            Orientation {
-                vector: (-1.0, 0.0),
-                wayland_state: Transform::_270,
-                x_state: "right",
-                matrix: ["0", "1", "0", "-1", "0", "1", "0", "0", "1"],
-            },
-            Orientation {
-                vector: (1.0, 0.0),
-                wayland_state: Transform::_90,
-                x_state: "left",
-                matrix: ["0", "-1", "1", "1", "0", "0", "0", "0", "1"],
-            },
-        ];
-
-        let mut old_state = backend.get_rotation_state()?;
-        let mut current_orient: &Orientation = &orientations[0];
-
-        loop {
-            let x_raw = fs::read_to_string(path_x.as_str()).unwrap();
-            let y_raw = fs::read_to_string(path_y.as_str()).unwrap();
-            let z_raw = fs::read_to_string(path_z.as_str()).unwrap();
-            let x_clean = x_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
-            let y_clean = y_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
-            let z_clean = z_raw.trim_end_matches('\n').parse::<f32>().unwrap_or(0.);
-
-            // Normalize vectors
-            let norm_factor = normalization_factor.unwrap_or_else(|| {
-                f32::sqrt(x_clean * x_clean + y_clean * y_clean + z_clean * z_clean)
-            });
-
-            let mut mut_x: f32 = x_clean / norm_factor;
-            let mut mut_y: f32 = y_clean / norm_factor;
-            let mut mut_z: f32 = z_clean / norm_factor;
-
-            // Apply inversions
-            if flip_x {
-                mut_x = -mut_x;
-            }
-            if flip_y {
-                mut_y = -mut_y;
-            }
-            if flip_z {
-                mut_z = -mut_z;
-            }
-            // Switch axes as requested
-            let x = match x_source {
-                'y' => mut_y,
-                'z' => mut_z,
-                _ => mut_x,
-            };
-            let y = match y_source {
-                'x' => mut_x,
-                'z' => mut_z,
-                _ => mut_y,
-            };
-
-            for orient in orientations.iter() {
-                let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
-                if d < threshold.parse::<f32>().unwrap_or(0.5) {
-                    current_orient = orient;
-                    break;
-                }
-            }
-
-            if current_orient.wayland_state != old_state {
-                let old_env = transform_to_env(&old_state);
-                let new_env = transform_to_env(&current_orient.wayland_state);
-                for bhook in beforehooks.iter() {
-                    Command::new("bash")
-                        .arg("-c")
-                        .arg(bhook)
-                        .env("ORIENTATION", new_env)
-                        .env("PREV_ORIENTATION", old_env)
-                        .spawn()
-                        .expect("A hook failed to start.")
-                        .wait()
-                        .expect("Waiting for a hook failed.");
-                }
-
-                backend.change_rotation_state(current_orient);
-
-                for hook in hooks.iter() {
-                    Command::new("bash")
-                        .arg("-c")
-                        .arg(hook)
-                        .env("ORIENTATION", new_env)
-                        .env("PREV_ORIENTATION", old_env)
-                        .spawn()
-                        .expect("A hook failed to start.")
-                        .wait()
-                        .expect("Waiting for a hook failed.");
-                }
-
-                old_state = current_orient.wayland_state;
-            }
-
-            if oneshot {
-                return Ok(());
-            }
-
-            thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
+        if flip_y {
+            mut_y = -mut_y;
         }
+        if flip_z {
+            mut_z = -mut_z;
+        }
+        // Switch axes as requested
+        let x = match x_source {
+            'y' => mut_y,
+            'z' => mut_z,
+            _ => mut_x,
+        };
+        let y = match y_source {
+            'x' => mut_x,
+            'z' => mut_z,
+            _ => mut_y,
+        };
+
+        for orient in orientations.iter() {
+            let d = (x - orient.vector.0).powf(2.0) + (y - orient.vector.1).powf(2.0);
+            if d < threshold.parse::<f32>().unwrap_or(0.5) {
+                current_orient = orient;
+                break;
+            }
+        }
+
+        if current_orient.wayland_state != old_state {
+            let old_env = transform_to_env(&old_state);
+            let new_env = transform_to_env(&current_orient.wayland_state);
+            for bhook in beforehooks.iter() {
+                Command::new("bash")
+                    .arg("-c")
+                    .arg(bhook)
+                    .env("ORIENTATION", new_env)
+                    .env("PREV_ORIENTATION", old_env)
+                    .spawn()
+                    .expect("A hook failed to start.")
+                    .wait()
+                    .expect("Waiting for a hook failed.");
+            }
+
+            backend.change_rotation_state(current_orient);
+
+            for hook in hooks.iter() {
+                Command::new("bash")
+                    .arg("-c")
+                    .arg(hook)
+                    .env("ORIENTATION", new_env)
+                    .env("PREV_ORIENTATION", old_env)
+                    .spawn()
+                    .expect("A hook failed to start.")
+                    .wait()
+                    .expect("Waiting for a hook failed.");
+            }
+
+            old_state = current_orient.wayland_state;
+        }
+
+        if oneshot {
+            return Ok(());
+        }
+
+        thread::sleep(Duration::from_millis(sleep.parse::<u64>().unwrap_or(0)));
     }
 }
 
