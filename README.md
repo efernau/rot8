@@ -88,6 +88,7 @@ There are the following args (defaults):
 --oneshot               // Updates the screen rotation just once instead of continuously
 --beforehooks           // Execute a custom script before rotation
 --hooks                 // Execute a custom script after the rotation has finished
+--accelerometer         // Set accelerometer device path
 --version               // Returns the rot8 version
 
 ```
